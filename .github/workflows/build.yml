@@ -131,6 +131,30 @@ jobs:
           }
           & .\tests\ci-smoke.ps1 @params
 
+      - name: Validar requisitos de entrega estable
+        if: startsWith(github.ref, 'refs/tags/v') && !contains(github.ref_name, '-')
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          SMOKE_LICENSE_KEY: ${{ secrets.SMOKE_LICENSE_KEY }}
+          LICENSE_PUBLIC_KEY_PEM: ${{ vars.LICENSE_PUBLIC_KEY_PEM }}
+        run: |
+          $info = Get-Content dist\BUILD-INFO.json -Raw | ConvertFrom-Json
+          if (-not $info.signed) {
+            throw "Un tag estable requiere un build con firma Authenticode verificada."
+          }
+          if (-not $env:LICENSE_PUBLIC_KEY_PEM) {
+            throw "Un tag estable requiere LICENSE_PUBLIC_KEY_PEM para embeber la llave publica."
+          }
+          if (-not $env:SMOKE_LICENSE_KEY) {
+            throw "Un tag estable requiere SMOKE_LICENSE_KEY para probar la activacion real."
+          }
+          if (-not $env:DEPLOY_HOST -or -not $env:DEPLOY_USER -or -not $env:DEPLOY_SSH_KEY) {
+            throw "Un tag estable requiere DEPLOY_HOST, DEPLOY_USER y DEPLOY_SSH_KEY."
+          }
+          Write-Host "requisitos de entrega estable: OK"
+
       - name: Subir artefactos
         uses: actions/upload-artifact@v4
         with:
@@ -205,3 +229,17 @@ jobs:
           ssh @sshArgs $remote "chmod a+r '$remoteDir/files/SalonSuite-$env:APP_VERSION-setup.exe' '$remoteDir/$manifestName'"
           if ($LASTEXITCODE -ne 0) { throw "chmod remoto falló" }
           Write-Host "publicado: $manifestName y SalonSuite-$env:APP_VERSION-setup.exe"
+
+      - name: Verificar servidor de licencias
+        if: startsWith(github.ref, 'refs/tags/v') && !contains(github.ref_name, '-')
+        run: |
+          $base = $env:LICENSE_SERVER_URL.TrimEnd('/')
+          $health = Invoke-RestMethod -Uri "$base/health" -TimeoutSec 30
+          if (-not $health.ok) { throw "El servidor de licencias no reporta ok en /health" }
+          $public = Invoke-RestMethod -Uri "$base/public" -TimeoutSec 30
+          if (-not $public.ok -or -not $public.public_key) { throw "El servidor de licencias no publica su llave en /public" }
+          $manifest = Invoke-RestMethod -Uri "$base/api/version?channel=$env:UPDATE_CHANNEL" -TimeoutSec 30
+          if (-not $manifest.ok -or [string]$manifest.version -ne $env:APP_VERSION -or -not $manifest.sha256 -or -not $manifest.signature) {
+            throw "El manifiesto remoto no corresponde a la version estable o no esta firmado."
+          }
+          Write-Host "servidor de licencias y manifiesto: OK"

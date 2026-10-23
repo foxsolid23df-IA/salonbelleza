@@ -237,6 +237,15 @@ La prueba de humo usa `SALON_DEV_SKIP_LICENSE=1` en la instalación temporal si 
 - Sin certificado, el workflow publica el aviso de SmartScreen y los SHA-256. No se debe presentar ese build como firmado.
 - El ZIP portable incluye el launcher firmado; no se puede firmar el ZIP en sí, solo su contenido ejecutable.
 
+### Entrega estable
+Un tag `vX.Y.Z` sin sufijo no se publica como estable si falta cualquiera de estos requisitos:
+- `BUILD-INFO.json` con `signed=true` y firma Authenticode verificada.
+- `LICENSE_PUBLIC_KEY_PEM` para embeber la llave pública.
+- `SMOKE_LICENSE_KEY` para probar la activación real durante el smoke.
+- `DEPLOY_HOST`, `DEPLOY_USER` y `DEPLOY_SSH_KEY` para publicar en `get.salonsuite.com`.
+
+Después del despliegue, el workflow consulta `/health`, `/public` y `/api/version?channel=stable|beta`; falla si el servidor no responde o el manifiesto no corresponde a la versión y no está firmado. Los tags `-rc`/`-beta` quedan como pre-release y no pasan por esta compuerta.
+
 ## Notas de limpieza
 - `analysis/` contiene el proceso REA full clean-room (no se copió código del original).
 - DB reseteable borrando `app/data/salon.db*` y `.license/`.

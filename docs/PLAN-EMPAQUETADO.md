@@ -206,6 +206,8 @@ Configuración:
 
 Sin certificado el workflow sigue siendo válido: publica los SHA-256 y el aviso de SmartScreen. La firma se certifica cuando se ejecute con un PFX real y `signtool verify /pa` pase.
 
+Entrega estable: un tag `vX.Y.Z` sin sufijo exige `BUILD-INFO.json` con `signed=true`, `LICENSE_PUBLIC_KEY_PEM`, `SMOKE_LICENSE_KEY`, `DEPLOY_HOST`, `DEPLOY_USER` y `DEPLOY_SSH_KEY`. Tras desplegar, el workflow valida `/health`, `/public` y el manifiesto firmado en `/api/version`; si algo falta, no se publica como estable. Los tags `-rc`/`-beta` son pre-release y no pasan por esa compuerta.
+
 ### Fase 6 — QA y entrega (2 días)
 Matriz mínima:
 
