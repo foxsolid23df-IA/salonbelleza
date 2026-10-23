@@ -135,6 +135,25 @@ Secretos:
 - `WINDOWS_CERT_PFX_BASE64`
 - `WINDOWS_CERT_PASSWORD`
 
+Crear el token de Vercel en `https://vercel.com/account/tokens` (scope del equipo `gabinotrejos-projects`) y guardarlo:
+
+```powershell
+$token = Read-Host -AsSecureString "Token de Vercel"
+$plain = [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($token))
+gh secret set VERCEL_TOKEN --repo foxsolid23df-IA/salonbelleza --body $plain
+```
+
+Para el PFX:
+
+```powershell
+$pfx = "C:\ruta\certificado.pfx"
+$b64 = [Convert]::ToBase64String([IO.File]::ReadAllBytes($pfx))
+gh secret set WINDOWS_CERT_PFX_BASE64 --repo foxsolid23df-IA/salonbelleza --body $b64
+$password = Read-Host -AsSecureString "Contraseña del PFX"
+$plain = [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($password))
+gh secret set WINDOWS_CERT_PASSWORD --repo foxsolid23df-IA/salonbelleza --body $plain
+```
+
 El workflow revoca la activación anterior de la licencia de humo antes de instalar, para que cada runner pueda activar desde un HWID nuevo. Después del despliegue consulta `/health`, `/public` y el manifiesto firmado.
 
 ## 10. Limitaciones de Vercel
