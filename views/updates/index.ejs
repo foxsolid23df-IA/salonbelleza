@@ -1,0 +1,54 @@
+<%- include('../partials/head') %>
+<div class="page-head"><h1>Actualizaciones</h1></div>
+
+<% if (error) { %><div class="error-box"><%= error %></div><% } %>
+
+<div class="card">
+  <p>Versión instalada: <strong><%= currentVersion %></strong> · Canal: <strong><%= channel %></strong></p>
+  <p>Última consulta: <strong><%= state.lastCheck || 'nunca' %></strong></p>
+
+  <% if (state.error) { %>
+    <div class="error-box">No se pudo consultar el servidor: <%= state.error %></div>
+  <% } %>
+
+  <% if (state.available) { %>
+    <div class="update-box">
+      <h2 style="margin-top:0">Nueva versión <%= state.version %></h2>
+      <% if (state.mandatory) { %><p><strong>Esta actualización es obligatoria para seguir usando el sistema.</strong></p><% } %>
+      <% if (state.notes) { %><p style="white-space:pre-line"><%= state.notes %></p><% } %>
+      <p class="muted">SHA-256: <code><%= state.sha256 %></code></p>
+      <% if (installed) { %>
+        <form method="post" action="/updates/install">
+          <button class="btn" type="submit">Descargar e instalar</button>
+        </form>
+        <p class="muted">La aplicación se reiniciará. No cierres esta ventana hasta que termine.</p>
+      <% } else { %>
+        <p class="muted">La instalación automática solo está disponible en una instalación de Windows.</p>
+      <% } %>
+    </div>
+  <% } else if (state.ok) { %>
+    <p class="muted">No hay actualizaciones disponibles.</p>
+  <% } else if (!state.lastCheck) { %>
+    <p class="muted">Todavía no se ha consultado el servidor.</p>
+  <% } %>
+
+  <form method="post" action="/updates/check" style="margin-top:1rem">
+    <button class="btn secondary" type="submit">Buscar actualizaciones</button>
+  </form>
+</div>
+
+<% if (lastStatus) { %>
+<div class="card">
+  <h2 style="margin-top:0">Último intento de instalación</h2>
+  <p>Estado: <strong><%= lastStatus.state %></strong> · <%= lastStatus.at || '' %></p>
+  <p class="muted"><%= lastStatus.message || '' %></p>
+</div>
+<% } %>
+
+<div class="card">
+  <h2 style="margin-top:0">Cómo funciona</h2>
+  <p>La actualización se descarga desde el servidor oficial, se verifica con SHA-256 y la firma Ed25519 del manifiesto, y se instala en modo silencioso. Si la versión nueva no responde en 90 segundos, se restaura automáticamente la versión anterior.</p>
+  <p class="muted">Los datos, la licencia y la configuración se conservan.</p>
+</div>
+
+<%- include('../partials/foot') %>

@@ -1,0 +1,16 @@
+<table class="data">
+  <thead><tr><th>Nombre</th><th>Teléfono</th><th>Correo</th><th class="num">Visitas</th><th>Última visita</th><th class="num">Saldo crédito</th></tr></thead>
+  <tbody>
+  <% if (!clients.length) { %><tr><td colspan="6" style="color:var(--muted)">Sin resultados</td></tr><% } %>
+  <% clients.forEach(c => { %>
+    <tr>
+      <td><a href="/clientes/<%= c.id %>"><%= c.first_name %> <%= c.last_name1 %> <%= c.last_name2 %></a></td>
+      <td><%= c.phone || '—' %></td>
+      <td><%= c.email || '—' %></td>
+      <td class="num"><%= c.visits %></td>
+      <td><%= c.last_visit || '—' %></td>
+      <td class="num">$<%= Number(c.credit_balance).toFixed(2) %></td>
+    </tr>
+  <% }) %>
+  </tbody>
+</table>

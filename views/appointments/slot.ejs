@@ -1,0 +1,100 @@
+<%- include('../partials/head') %>
+<div class="page-head">
+  <h1><%= appointment ? 'Editar cita' : 'Nueva cita' %></h1>
+  <div class="spacer"></div>
+  <a class="btn secondary" href="/citas?fecha=<%= date %>">Volver</a>
+</div>
+<div class="card">
+  <form method="post" action="/citas/guardar" id="apptForm">
+    <% if (appointment) { %><input type="hidden" name="id" value="<%= appointment.id %>"><% } %>
+    <div class="row cols-3">
+      <div>
+        <label>Cliente *</label>
+        <select name="client_id" required>
+          <option value="">— Selecciona —</option>
+          <% clients.forEach(c => { %>
+            <option value="<%= c.id %>" <%= appointment && appointment.client_id === c.id ? 'selected' : '' %>><%= c.name %></option>
+          <% }) %>
+        </select>
+        <a href="/clientes/nuevo" target="_blank" style="font-size:.8rem">+ Crear cliente</a>
+      </div>
+      <div><label>Fecha *</label><input type="date" name="date" required value="<%= date %>"></div>
+      <div><label>Hora de inicio *</label><input type="time" name="start_time" required step="900" value="<%= fmtTime(startMin) %>"></div>
+      <div>
+        <label>Hora de fin (opcional)</label>
+        <input type="time" name="end_time" step="900" value="<%= appointment ? fmtTime(appointment.end_min) : '' %>" placeholder="auto">
+      </div>
+      <div>
+        <label>Estado</label>
+        <select name="status">
+          <% ['scheduled','confirmed','in_service','done','cancelled','no_show'].forEach(st => { %>
+            <option value="<%= st %>" <%= appointment && appointment.status === st ? 'selected' : (!appointment && st === 'scheduled' ? 'selected' : '') %>><%= st %></option>
+          <% }) %>
+        </select>
+      </div>
+      <% if (appointment) { %>
+        <div>
+          <label>Personal sugerido por cita</label>
+          <% const seen = []; appointment.services.forEach(s => { if (s.staff_id && !seen.includes(s.staff_id)) seen.push(s.staff_id); }) %>
+          <input type="text" disabled value="<%= (typeof staff !== 'undefined' && staff ? staff.filter(s => seen.includes(s.id)).map(s => s.name).join(', ') : '') %>">
+        </div>
+      <% } %>
+    </div>
+
+    <h2>Servicios</h2>
+    <div id="svcRows">
+      <% const rows = apptServices.length ? apptServices : [null]; %>
+      <% rows.forEach((r, i) => { %>
+        <div class="row cols-3 svc-row">
+          <div>
+            <% if (i === 0) { %><label>Servicio *</label><% } %>
+            <select name="service_id" required>
+              <option value="">— Selecciona —</option>
+              <% services.forEach(s => { %>
+                <option value="<%= s.id %>" data-dur="<%= s.duration_min %>" <%= r && r.service_id === s.id ? 'selected' : '' %>><%= s.name %> · <%= s.duration_min %>min · $<%= Number(s.price).toFixed(2) %></option>
+              <% }) %>
+            </select>
+          </div>
+          <div>
+            <% if (i === 0) { %><label>Personal</label><% } %>
+            <select name="staff_id">
+              <option value="">— Sin asignar —</option>
+              <% if (typeof staff !== 'undefined' && staff) staff.forEach(s => { %>
+                <option value="<%= s.id %>" <%= r && r.staff_id === s.id ? 'selected' : '' %>><%= s.name %></option>
+              <% }) %>
+            </select>
+          </div>
+          <div style="display:flex;align-items:end;gap:.4rem">
+            <% if (i === 0) { %><label style="margin:0">&nbsp;</label><% } %>
+            <button class="btn secondary small" type="button" onclick="removeRow(this)">✕</button>
+          </div>
+        </div>
+      <% }) %>
+    </div>
+    <button class="btn secondary small" type="button" id="addRow" style="margin-top:.5rem">+ Agregar servicio</button>
+
+    <label>Notas</label>
+    <textarea name="notes" rows="2"><%= appointment ? (appointment.notes || '') : '' %></textarea>
+    <div style="height:.8rem"></div>
+    <button class="btn" type="submit">Guardar cita</button>
+  </form>
+</div>
+
+<script>
+var tplWrap = document.createElement('div');
+tplWrap.innerHTML = document.querySelector('.svc-row').outerHTML;
+tplWrap.querySelectorAll('label').forEach(function (l) { l.remove(); });
+var template = tplWrap.innerHTML;
+document.getElementById('addRow').addEventListener('click', function () {
+  var wrap = document.createElement('div');
+  wrap.innerHTML = template;
+  var row = wrap.firstChild;
+  row.querySelectorAll('select').forEach(function (s) { s.selectedIndex = 0; });
+  document.getElementById('svcRows').appendChild(row);
+});
+function removeRow(btn) {
+  var rows = document.querySelectorAll('.svc-row');
+  if (rows.length > 1) btn.closest('.svc-row').remove();
+}
+</script>
+<%- include('../partials/foot') %>

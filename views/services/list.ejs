@@ -1,0 +1,43 @@
+<%- include('../partials/head') %>
+<div class="page-head">
+  <h1>Servicios</h1>
+  <div class="spacer"></div>
+  <a class="btn" href="/servicios/nuevo">+ Nuevo servicio</a>
+</div>
+<div class="card">
+  <form class="filters" method="get" action="/servicios">
+    <div class="f"><label>Familia</label>
+      <select name="familia">
+        <option value="0">Todas</option>
+        <% families.forEach(f => { %><option value="<%= f.id %>" <%= familyId === f.id ? 'selected' : '' %>><%= f.name %></option><% }) %>
+      </select>
+    </div>
+    <div class="f" style="flex:1"><label>Buscar</label><input type="text" name="q" value="<%= q %>"></div>
+    <button class="btn secondary" type="submit">Filtrar</button>
+  </form>
+  <form class="filters" method="post" action="/servicios/familia" style="margin-top:.7rem">
+    <div class="f" style="flex:1"><label>Agregar familia</label><input type="text" name="name" placeholder="Nueva familia de servicios" required></div>
+    <input type="hidden" name="next" value="/servicios?familia=<%= familyId %>&q=<%= q %>">
+    <button class="btn secondary" type="submit">Agregar</button>
+  </form>
+</div>
+<div class="card">
+  <table class="data">
+    <thead><tr><th></th><th>Servicio</th><th>Familia</th><th class="num">Precio</th><th class="num">Duración</th><th>Reservable</th><th>Estado</th></tr></thead>
+    <tbody>
+    <% if (!services.length) { %><tr><td colspan="7" style="color:var(--muted)">Sin servicios</td></tr><% } %>
+    <% services.forEach(s => { %>
+      <tr>
+        <td><span class="dot" style="background:<%= s.color %>"></span></td>
+        <td><a href="/servicios/<%= s.id %>"><%= s.name %></a></td>
+        <td><%= s.family_name || '—' %></td>
+        <td class="num">$<%= Number(s.price).toFixed(2) %></td>
+        <td class="num"><%= s.duration_min %> min</td>
+        <td><%= s.bookable ? 'Sí' : 'No' %></td>
+        <td><%= s.active ? 'Activo' : 'Inactivo' %></td>
+      </tr>
+    <% }) %>
+    </tbody>
+  </table>
+</div>
+<%- include('../partials/foot') %>

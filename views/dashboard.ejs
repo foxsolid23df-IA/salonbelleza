@@ -1,0 +1,57 @@
+<%- include('partials/head') %>
+<div class="page-head"><h1>Hola, <%= user.name.split(' ')[0] %></h1></div>
+
+<div class="grid-3" style="margin-bottom:1rem">
+  <div class="stat"><div class="k">Citas hoy</div><div class="v"><%= upcoming.length %></div></div>
+  <div class="stat"><div class="k">Ventas de hoy</div><div class="v">$<%= salesToday.total.toFixed(2) %></div><div class="k" style="margin-top:.2rem"><%= salesToday.n %> tickets</div></div>
+  <div class="stat"><div class="k">Tickets en espera</div><div class="v"><%= heldTickets.length %></div></div>
+</div>
+
+<h2>Accesos</h2>
+<div class="tiles" style="margin-bottom:1rem">
+  <% tiles.forEach(t => { %>
+    <a class="tile" href="<%= t.href %>"><span class="icon"><%= t.icon %></span><span><%= t.label %></span></a>
+  <% }) %>
+</div>
+
+<div class="grid-2">
+  <div class="card">
+    <h2 style="margin-top:0">Próximas citas de hoy (<%= today %>)</h2>
+    <% if (!upcoming.length) { %><p style="color:var(--muted)">No hay citas programadas para hoy.</p><% } %>
+    <% if (upcoming.length) { %>
+    <table class="data">
+      <thead><tr><th>Hora</th><th>Cliente</th><th>Servicios</th><th>Estado</th></tr></thead>
+      <tbody>
+      <% upcoming.forEach(a => { %>
+        <tr>
+          <td><a href="/citas/<%= a.id %>"><%= String(Math.floor(a.start_min/60)).padStart(2,'0') %>:<%= String(a.start_min%60).padStart(2,'0') %></a></td>
+          <td><%= a.client %></td>
+          <td><%= a.services || '—' %></td>
+          <td><span class="badge <%= a.status %>"><%= a.status %></span></td>
+        </tr>
+      <% }) %>
+      </tbody>
+    </table>
+    <% } %>
+  </div>
+  <div class="card">
+    <h2 style="margin-top:0">Tickets en espera</h2>
+    <% if (!heldTickets.length) { %><p style="color:var(--muted)">No hay tickets en espera.</p><% } %>
+    <% if (heldTickets.length) { %>
+    <table class="data">
+      <thead><tr><th>#</th><th>Cliente</th><th class="num">Total</th><th></th></tr></thead>
+      <tbody>
+      <% heldTickets.forEach(t => { %>
+        <tr>
+          <td><%= t.number %></td>
+          <td><%= t.client || 'Público General' %></td>
+          <td class="num">$<%= t.total.toFixed(2) %></td>
+          <td><a class="btn small" href="/ventas?ticket=<%= t.id %>">Abrir</a></td>
+        </tr>
+      <% }) %>
+      </tbody>
+    </table>
+    <% } %>
+  </div>
+</div>
+<%- include('partials/foot') %>

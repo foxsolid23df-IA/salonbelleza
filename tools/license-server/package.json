@@ -1,0 +1,23 @@
+{
+  "name": "salon-license-server",
+  "version": "2.0.0",
+  "private": true,
+  "description": "Servidor de licencias Salón Suite (Ed25519, HWID, administración)",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "node --watch index.js",
+    "admin": "node admin.js",
+    "backup": "node backup.js",
+    "test": "node test-phase3.js",
+    "test:phase4": "node test-phase4.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "better-sqlite3": "^12.2.0",
+    "express": "^5.1.0"
+  },
+  "license": "UNLICENSED"
+}

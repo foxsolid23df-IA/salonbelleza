@@ -1,0 +1,52 @@
+<%- include('../partials/head') %>
+<div class="page-head">
+  <h1>Ventas</h1>
+  <div class="spacer"></div>
+  <a class="btn secondary" href="/ventas/en-espera">En espera (<%= held.length %>)</a>
+  <a class="btn secondary" href="/ventas/nuevo">Nuevo ticket</a>
+</div>
+
+<div class="pos">
+  <div>
+    <div class="card">
+      <form method="post" action="/ventas/cliente">
+        <input type="hidden" name="ticket" value="<%= view.ticket.id %>">
+        <label>Cliente (ticket #<%= view.ticket.number %>)</label>
+        <select name="client_id" onchange="this.form.submit()">
+          <option value="">Público General</option>
+          <% clients.forEach(c => { %>
+            <option value="<%= c.id %>" <%= view.client && view.client.id === c.id ? 'selected' : '' %>><%= c.name %></option>
+          <% }) %>
+        </select>
+      </form>
+      <% if (view.client && view.client.credit_balance > 0) { %>
+        <p style="color:var(--accent);font-weight:600;margin:.4rem 0 0">Saldo de crédito: $<%= Number(view.client.credit_balance).toFixed(2) %></p>
+      <% } %>
+    </div>
+
+    <div class="card">
+      <div class="catalog-tabs">
+        <a class="btn secondary small" href="/ventas/catalogo?tab=servicios&ticket=<%= view.ticket.id %>" hx-get="/ventas/catalogo?tab=servicios&ticket=<%= view.ticket.id %>" hx-target="#catalog" hx-swap="innerHTML" id="tabServ">Servicios</a>
+        <a class="btn secondary small" href="/ventas/catalogo?tab=productos&ticket=<%= view.ticket.id %>" hx-get="/ventas/catalogo?tab=productos&ticket=<%= view.ticket.id %>" hx-target="#catalog" hx-swap="innerHTML" id="tabProd">Productos</a>
+        <input type="text" placeholder="Buscar…" style="width:150px" hx-get="/ventas/catalogo" hx-vals='{"tab":"servicios","ticket":"<%= view.ticket.id %>"}' hx-trigger="keyup changed delay:300ms" hx-target="#catalog" hx-include="this" name="q" id="catSearch">
+      </div>
+      <div id="catalog" class="catalog-items">
+        <%- include('catalog', { tab: 'servicios', items: services, ticket: view.ticket, q: '' }) %>
+      </div>
+    </div>
+  </div>
+
+  <div id="ticket-panel" class="ticket-panel">
+    <%- include('_ticket') %>
+  </div>
+</div>
+
+<script>
+function setTab(tab) {
+  document.getElementById('catSearch').setAttribute('hx-vals', JSON.stringify({ tab: tab, ticket: '<%= view.ticket.id %>' }));
+  document.getElementById('catSearch').setAttribute('hx-get', '/ventas/catalogo');
+}
+document.getElementById('tabServ').addEventListener('click', function () { setTab('servicios'); });
+document.getElementById('tabProd').addEventListener('click', function () { setTab('productos'); });
+</script>
+<%- include('../partials/foot') %>

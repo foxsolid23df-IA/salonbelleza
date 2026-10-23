@@ -1,0 +1,53 @@
+<%- include('../partials/head') %>
+<div class="page-head">
+  <h1><%= product ? 'Editar producto' : 'Nuevo producto' %></h1>
+  <div class="spacer"></div>
+  <a class="btn secondary" href="/productos">Volver</a>
+</div>
+<div class="card">
+  <form method="post" action="/productos/guardar">
+    <% if (product) { %><input type="hidden" name="id" value="<%= product.id %>"><% } %>
+    <div class="row cols-3">
+      <div><label>Nombre *</label><input type="text" name="name" required value="<%= product ? product.name : '' %>"></div>
+      <div><label>Código</label><input type="text" name="code" value="<%= product ? product.code : '' %>"></div>
+      <div><label>Marca</label><input type="text" name="brand" value="<%= product ? product.brand : '' %>"></div>
+      <div><label>Proveedor</label><input type="text" name="supplier" value="<%= product ? product.supplier : '' %>"></div>
+      <div><label>Tipo</label>
+        <select name="kind">
+          <option value="retail" <%= product && product.kind === 'retail' ? 'selected' : '' %>>Venta</option>
+          <option value="technical" <%= product && product.kind === 'technical' ? 'selected' : '' %>>Técnico</option>
+        </select>
+      </div>
+      <div><label>Costo</label><input type="number" step="0.01" name="cost" value="<%= product ? product.cost : 0 %>"></div>
+      <div><label>Precio</label><input type="number" step="0.01" name="price" value="<%= product ? product.price : 0 %>"></div>
+      <div><label>Stock</label><input type="number" step="0.01" name="stock" value="<%= product ? product.stock : 0 %>"></div>
+      <div><label style="display:flex;gap:.4rem;align-items:center"><input type="checkbox" name="active" style="width:auto" <%= !product || product.active ? 'checked' : '' %>> Activo</label></div>
+    </div>
+    <div style="height:.8rem"></div>
+    <button class="btn" type="submit">Guardar</button>
+  </form>
+</div>
+<% if (product) { %>
+<div class="card">
+  <h2 style="margin-top:0">Movimientos</h2>
+  <form class="filters" method="post" action="/productos/<%= product.id %>/movimiento">
+    <div class="f"><label>Cantidad (+/-)</label><input type="number" step="0.01" name="qty_delta" required></div>
+    <div class="f"><label>Motivo</label>
+      <select name="reason"><option value="entrada">Entrada</option><option value="salida">Salida</option><option value="ajuste">Ajuste</option></select>
+    </div>
+    <div class="f" style="flex:1"><label>Referencia</label><input type="text" name="ref"></div>
+    <button class="btn secondary" type="submit">Registrar</button>
+  </form>
+  <% if (moves.length) { %>
+  <table class="data" style="margin-top:.8rem">
+    <thead><tr><th>Fecha</th><th class="num">Cantidad</th><th>Motivo</th><th>Referencia</th></tr></thead>
+    <tbody>
+    <% moves.forEach(m => { %>
+      <tr><td><%= m.created_at %></td><td class="num"><%= m.qty_delta %></td><td><%= m.reason %></td><td><%= m.ref || '—' %></td></tr>
+    <% }) %>
+    </tbody>
+  </table>
+  <% } %>
+</div>
+<% } %>
+<%- include('../partials/foot') %>

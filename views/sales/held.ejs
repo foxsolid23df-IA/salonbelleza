@@ -1,0 +1,32 @@
+<%- include('../partials/head') %>
+<div class="page-head">
+  <h1>Tickets en espera</h1>
+  <div class="spacer"></div>
+  <a class="btn secondary" href="/ventas">Volver</a>
+  <a class="btn" href="/ventas/nuevo">Nuevo ticket</a>
+</div>
+<div class="card">
+  <% if (!held.length) { %><p style="color:var(--muted)">No hay tickets en espera.</p><% } %>
+  <% if (held.length) { %>
+  <table class="data">
+    <thead><tr><th>#</th><th>Cliente</th><th>Creado</th><th class="num">Total</th><th></th></tr></thead>
+    <tbody>
+    <% held.forEach(t => { %>
+      <tr>
+        <td><%= t.number %></td>
+        <td><%= t.client || 'Público General' %></td>
+        <td><%= t.created_at %></td>
+        <td class="num">$<%= Number(t.total).toFixed(2) %></td>
+        <td>
+          <a class="btn small" href="/ventas?ticket=<%= t.id %>">Abrir</a>
+          <form class="inline" method="post" action="/ventas/<%= t.id %>/cancelar" onsubmit="return confirm('¿Cancelar ticket?')">
+            <button class="btn small danger" type="submit">Cancelar</button>
+          </form>
+        </td>
+      </tr>
+    <% }) %>
+    </tbody>
+  </table>
+  <% } %>
+</div>
+<%- include('../partials/foot') %>

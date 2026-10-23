@@ -1,0 +1,23 @@
+<%- include('../partials/head') %>
+<div style="max-width:420px;margin:4rem auto;text-align:center">
+  <h1>Activar Salón Suite</h1>
+  <p style="color:var(--muted)">Ingresa la licencia (UUID v4) para activar este equipo.</p>
+  <% if (typeof error !== 'undefined' && error) { %><div class="error-box"><%= error %></div><% } %>
+  <% if (existing) { %><div class="flash">Licencia previamente registrada. Reactívala si cambiaste de equipo.</div><% } %>
+  <form method="post" action="/setup/activar">
+    <label>Clave de licencia *</label>
+    <input type="text" name="license_key" required placeholder="00000000-0000-0000-0000-000000000000"
+           pattern="[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}" maxlength="36">
+    <label>Nombre del salón / plan</label>
+    <input type="text" name="salon" placeholder="Ej. Lavandería Rossa" value="<%= existing ? '' : '' %>">
+    <label>Correo del administrador</label>
+    <input type="email" name="cliente_email" placeholder="admin@lavanderiarossa.com">
+    <p style="color:var(--muted);font-size:.78rem">La licencia se enlaza al hardware de esta máquina (HWID).</p>
+    <div style="height:.7rem"></div>
+    <button class="btn block" type="submit">Activar</button>
+    <% if (process.env.SALON_DEV_SKIP_LICENSE === '1') { %>
+      <p style="color:var(--muted);font-size:.78rem">Modo DEV: SALON_DEV_SKIP_LICENSE=1 activado, puedes <a href="/">entrar sin licencia</a>.</p>
+    <% } %>
+  </form>
+</div>
+<%- include('../partials/head') %>

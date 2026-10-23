@@ -1,0 +1,44 @@
+<%- include('../partials/head') %>
+<div class="card">
+  <h1>Instalando Salón Suite <%= targetVersion %></h1>
+  <p id="status">Descargando e iniciando el instalador. La aplicación se reiniciará; no cierres esta ventana.</p>
+  <div class="progress"><div id="bar"></div></div>
+  <p id="fallback" style="display:none" class="error-box">No se pudo confirmar la actualización. Espera un momento y <a href="/updates">revisa el estado</a>; si el problema continúa, contacta a soporte.</p>
+  <p class="muted">Versión actual: <%= currentVersion %> · Versión objetivo: <%= targetVersion %></p>
+</div>
+<script>
+  const currentVersion = <%- JSON.stringify(currentVersion).replace(/</g, "\\u003c") %>;
+  const targetVersion = <%- JSON.stringify(targetVersion).replace(/</g, "\\u003c") %>;
+  const statusEl = document.getElementById('status');
+  const bar = document.getElementById('bar');
+  let tries = 0;
+  let sawDown = false;
+  async function poll() {
+    tries += 1;
+    bar.style.width = Math.min(95, tries * 3) + '%';
+    try {
+      const res = await fetch('/health', { cache: 'no-store' });
+      const data = await res.json();
+      if (data && data.ok && data.version === targetVersion) {
+        statusEl.textContent = 'Actualización aplicada. Vuelve a iniciar sesión si es necesario.';
+        bar.style.width = '100%';
+        setTimeout(function () { window.location.href = '/updates?check=1'; }, 2500);
+        return;
+      }
+      if (data && data.ok && data.version === currentVersion && sawDown) {
+        statusEl.textContent = 'No se aplicó la actualización y se restauró la versión anterior.';
+        bar.style.width = '100%';
+        return;
+      }
+    } catch (err) {
+      sawDown = true;
+    }
+    if (tries < 75) {
+      setTimeout(poll, 2000);
+    } else {
+      document.getElementById('fallback').style.display = 'block';
+    }
+  }
+  setTimeout(poll, 3000);
+</script>
+<%- include('../partials/foot') %>

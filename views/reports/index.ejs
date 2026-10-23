@@ -1,0 +1,97 @@
+<%- include('../partials/head') %>
+<div class="page-head">
+  <h1>Reportes</h1>
+  <div class="spacer"></div>
+  <form class="inline" method="get" action="/reportes">
+    <input type="date" name="fecha" value="<%= today %>" onchange="this.form.submit()" style="width:auto">
+  </form>
+</div>
+
+<div class="card">
+  <h2 style="margin-top:0">Ventas de los últimos días</h2>
+  <table class="data">
+    <thead><tr><th>Día</th><th class="num">Tickets</th><th class="num">Total</th></tr></thead>
+    <tbody>
+    <% days.forEach(d => { const row = daily.find(r => r.day === d); %>
+      <tr>
+        <td><%= d %></td>
+        <td class="num"><%= row ? row.tickets : 0 %></td>
+        <td class="num">$<%= row ? Number(row.total).toFixed(2) : '0.00' %></td>
+      </tr>
+    <% }) %>
+    </tbody>
+  </table>
+</div>
+
+<div class="grid-2">
+  <div class="card">
+    <h2 style="margin-top:0">Rendimiento por personal (<%= today %>)</h2>
+    <% if (!byStaff.length) { %><p style="color:var(--muted)">Sin ventas hoy.</p><% } %>
+    <% if (byStaff.length) { %>
+    <table class="data">
+      <thead><tr><th></th><th>Personal</th><th class="num">Servicios</th><th class="num">Productos</th><th class="num">Total</th></tr></thead>
+      <tbody>
+      <% byStaff.forEach(s => { %>
+        <tr>
+          <td><span class="dot" style="background:<%= s.color %>"></span></td>
+          <td><%= s.name %></td>
+          <td class="num">$<%= s.services.toFixed(2) %></td>
+          <td class="num">$<%= s.products.toFixed(2) %></td>
+          <td class="num"><strong>$<%= s.total.toFixed(2) %></strong></td>
+        </tr>
+      <% }) %>
+      </tbody>
+    </table>
+    <% } %>
+  </div>
+  <div class="card">
+    <h2 style="margin-top:0">Citas de hoy</h2>
+    <div class="tiles">
+      <% const labels = { scheduled: 'Programadas', confirmed: 'Confirmadas', in_service: 'En servicio', done: 'Concluidas', cancelled: 'Canceladas', no_show: 'No presentó' }; %>
+      <% Object.keys(labels).forEach(k => { const st = apptStats.find(r => r.status === k); %>
+        <div class="stat"><div class="k"><%= labels[k] %></div><div class="v"><%= st ? st.n : 0 %></div></div>
+      <% }) %>
+    </div>
+  </div>
+</div>
+
+<div class="grid-2">
+  <div class="card">
+    <h2 style="margin-top:0">Servicios más vendidos</h2>
+    <% if (!byService.length) { %><p style="color:var(--muted)">Sin datos.</p><% } %>
+    <% if (byService.length) { %>
+    <table class="data">
+      <thead><tr><th>Servicio</th><th class="num">Veces</th><th class="num">Total</th></tr></thead>
+      <tbody>
+      <% byService.forEach(s => { %><tr><td><%= s.name %></td><td class="num"><%= s.qty %></td><td class="num">$<%= Number(s.total).toFixed(2) %></td></tr><% }) %>
+      </tbody>
+    </table>
+    <% } %>
+  </div>
+  <div class="card">
+    <h2 style="margin-top:0">Productos más vendidos</h2>
+    <% if (!byProduct.length) { %><p style="color:var(--muted)">Sin datos.</p><% } %>
+    <% if (byProduct.length) { %>
+    <table class="data">
+      <thead><tr><th>Producto</th><th class="num">Unidades</th><th class="num">Total</th></tr></thead>
+      <tbody>
+      <% byProduct.forEach(s => { %><tr><td><%= s.name %></td><td class="num"><%= s.qty %></td><td class="num">$<%= Number(s.total).toFixed(2) %></td></tr><% }) %>
+      </tbody>
+    </table>
+    <% } %>
+  </div>
+</div>
+
+<div class="card">
+  <h2 style="margin-top:0">Mejores clientes</h2>
+  <% if (!topClients.length) { %><p style="color:var(--muted)">Sin datos.</p><% } %>
+  <% if (topClients.length) { %>
+  <table class="data">
+    <thead><tr><th>Cliente</th><th class="num">Visitas</th><th class="num">Total</th></tr></thead>
+    <tbody>
+    <% topClients.forEach(c => { %><tr><td><%= c.name %></td><td class="num"><%= c.visits %></td><td class="num">$<%= Number(c.total).toFixed(2) %></td></tr><% }) %>
+    </tbody>
+  </table>
+  <% } %>
+</div>
+<%- include('../partials/foot') %>

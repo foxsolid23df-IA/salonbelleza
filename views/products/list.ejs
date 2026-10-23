@@ -1,0 +1,38 @@
+<%- include('../partials/head') %>
+<div class="page-head">
+  <h1>Productos</h1>
+  <div class="spacer"></div>
+  <a class="btn" href="/productos/nuevo">+ Nuevo producto</a>
+</div>
+<div class="card">
+  <form class="filters" method="get" action="/productos">
+    <div class="f"><label>Tipo</label>
+      <select name="tipo">
+        <option value="">Todos</option>
+        <option value="retail" <%= kind === 'retail' ? 'selected' : '' %>>Venta</option>
+        <option value="technical" <%= kind === 'technical' ? 'selected' : '' %>>Técnico</option>
+      </select>
+    </div>
+    <div class="f" style="flex:1"><label>Buscar</label><input type="text" name="q" value="<%= q %>"></div>
+    <button class="btn secondary" type="submit">Filtrar</button>
+  </form>
+</div>
+<div class="card">
+  <table class="data">
+    <thead><tr><th>Producto</th><th>Código</th><th>Marca</th><th>Proveedor</th><th class="num">Stock</th><th class="num">Precio</th></tr></thead>
+    <tbody>
+    <% if (!products.length) { %><tr><td colspan="6" style="color:var(--muted)">Sin productos</td></tr><% } %>
+    <% products.forEach(p => { %>
+      <tr>
+        <td><a href="/productos/<%= p.id %>"><%= p.name %></a></td>
+        <td><%= p.code || '—' %></td>
+        <td><%= p.brand || '—' %></td>
+        <td><%= p.supplier || '—' %></td>
+        <td class="num" <%= p.stock <= 0 ? 'style="color:var(--danger);font-weight:700"' : '' %>><%= p.stock %></td>
+        <td class="num">$<%= Number(p.price).toFixed(2) %></td>
+      </tr>
+    <% }) %>
+    </tbody>
+  </table>
+</div>
+<%- include('../partials/foot') %>

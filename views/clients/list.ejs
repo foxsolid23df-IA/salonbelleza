@@ -1,0 +1,19 @@
+<%- include('../partials/head') %>
+<div class="page-head">
+  <h1>Clientes</h1>
+  <div class="spacer"></div>
+  <a class="btn" href="/clientes/nuevo">+ Nuevo cliente</a>
+</div>
+<div class="card">
+  <form class="filters" method="get" action="/clientes">
+    <div class="f" style="flex:1">
+      <label>Buscar</label>
+      <input type="text" name="q" value="<%= q %>" placeholder="Nombre, teléfono o correo" hx-get="/clientes/buscar" hx-trigger="keyup changed delay:300ms" hx-target="#rows" hx-include="this">
+    </div>
+    <button class="btn secondary" type="submit">Buscar</button>
+  </form>
+</div>
+<div class="card">
+  <div id="rows"><%- include('rows') %></div>
+</div>
+<%- include('../partials/foot') %>

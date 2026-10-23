@@ -1,0 +1,11 @@
+{
+  "version": "0.2.0",
+  "license_protocol": "Ed25519",
+  "token_ttl_days": 30,
+  "grace_days": 14,
+  "plans": {
+    "starter": { "staff_max": 4, "label": "Starter (4 estilistas)" },
+    "pro": { "staff_max": 10, "label": "Pro (10 estilistas)" },
+    "enterprise": { "staff_max": 0, "label": "Ilimitado" }
+  }
+}

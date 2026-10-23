@@ -1,0 +1,97 @@
+<%- include('../partials/head') %>
+<div class="page-head">
+  <h1>Citas</h1>
+  <div class="spacer"></div>
+  <form class="inline" method="get" action="/citas">
+    <input type="date" name="fecha" value="<%= date %>" onchange="this.form.submit()" style="width:auto">
+  </form>
+  <a class="btn secondary" href="/citas?fecha=<%= new Date(new Date(date+'T00:00:00').getTime()-86400000).toISOString().slice(0,10) %>">← Día anterior</a>
+  <a class="btn secondary" href="/citas?fecha=<%= new Date(new Date(date+'T00:00:00').getTime()+86400000).toISOString().slice(0,10) %>">Día siguiente →</a>
+  <a class="btn" href="/citas/slot?fecha=<%= date %>&staff_id=<%= staff.length ? staff[0].id : '' %>&start_min=<%= 10*60 %>">+ Nueva cita</a>
+</div>
+
+<div class="grid-3" style="margin-bottom:1rem">
+  <div class="stat"><div class="k">Citas del día</div><div class="v"><%= appts.filter(a => a.status !== 'cancelled').length %></div></div>
+  <div class="stat"><div class="k">Proyección</div><div class="v">$<%= Number(projected).toFixed(2) %></div></div>
+  <div class="stat"><div class="k">Personal en agenda</div><div class="v"><%= staff.length %></div></div>
+</div>
+
+<div class="card agenda">
+  <% const px = 0.75; const totalMin = DAY_END - DAY_START; %>
+  <div class="agenda-grid" style="grid-template-columns: 64px repeat(<%= Math.max(staff.length,1) %>, minmax(140px,1fr));">
+    <div class="hcell" style="background:#f8fafc"></div>
+    <% if (!staff.length) { %><div class="hcell">Sin personal activo</div><% } %>
+    <% staff.forEach(s => { %>
+      <div class="hcell"><span class="dot" style="background:<%= s.color %>"></span><%= s.name %></div>
+    <% }) %>
+    <div style="position:relative;height:<%= totalMin*px %>px;border-bottom:1px solid var(--line)">
+      <% for (let t = DAY_START; t < DAY_END; t += 60) { %>
+        <div style="position:absolute;top:<%= (t-DAY_START)*px %>px;right:6px;font-size:.7rem;color:var(--muted)"><%= fmtTime(t) %></div>
+        <div style="position:absolute;top:<%= (t-DAY_START)*px %>px;left:0;right:0;border-top:1px dashed #e2e8f0"></div>
+      <% } %>
+    </div>
+    <% staff.forEach(s => { %>
+      <div class="staff-col" style="position:relative;height:<%= totalMin*px %>px;cursor:crosshair;user-select:none"
+           data-staff="<%= s.id %>" data-date="<%= date %>" data-px="<%= px %>" data-day-start="<%= DAY_START %>">
+        <% for (let t = DAY_START; t < DAY_END; t += 60) { %>
+          <div style="position:absolute;top:<%= (t-DAY_START)*px %>px;left:0;right:0;border-top:1px dashed #f1f5f9"></div>
+        <% } %>
+        <% appts.forEach(a => {
+             const primary = a.services.find(sv => sv.staff_id === s.id) || (a.services[0] && a.services[0].staff_id === null ? a.services[0] : null);
+             if (!primary || primary.staff_id !== s.id) return;
+             const top = (a.start_min - DAY_START) * px;
+             const h = Math.max(16, (a.end_min - a.start_min) * px - 2);
+             const color = a.status === 'cancelled' ? '#94a3b8' : (primary.color || s.color);
+        %>
+          <div class="appt" style="top:<%= top %>px;height:<%= h %>px;background:<%= color %><%= a.status === 'cancelled' ? ';opacity:.6' : '' %>">
+            <div class="t"><%= fmtTime(a.start_min) %> · <a href="/citas/<%= a.id %>"><%= a.client %></a></div>
+            <% if (h > 30) { %><div><%= a.services.map(x => x.service_name).join(', ') %></div><% } %>
+            <% if (a.status === 'in_service' && h > 44) { %><div><a class="btn small" style="background:#fff;color:#111" href="/citas/<%= a.id %>/checkin">Abrir ticket</a></div><% } %>
+          </div>
+        <% }); %>
+      </div>
+    <% }) %>
+  </div>
+</div>
+
+<div class="card">
+  <h2 style="margin-top:0">Lista del día</h2>
+  <% if (!appts.length) { %><p style="color:var(--muted)">No hay citas para <%= date %>.</p><% } %>
+  <% if (appts.length) { %>
+  <table class="data">
+    <thead><tr><th>Hora</th><th>Cliente</th><th>Teléfono</th><th>Servicios</th><th class="num">Monto</th><th>Estado</th><th></th></tr></thead>
+    <tbody>
+    <% appts.forEach(a => { %>
+      <tr>
+        <td><%= fmtTime(a.start_min) %> – <%= fmtTime(a.end_min) %></td>
+        <td><a href="/citas/<%= a.id %>"><%= a.client %></a></td>
+        <td><%= a.phone || '—' %></td>
+        <td><%= a.services.map(x => x.service_name + (x.staff_name ? ' (' + x.staff_name + ')' : '')).join(', ') %></td>
+        <td class="num">$<%= a.services.reduce((s,x) => s + Number(x.price), 0).toFixed(2) %></td>
+        <td><span class="badge <%= a.status %>"><%= a.status %></span></td>
+        <td>
+          <% if (a.status === 'scheduled' || a.status === 'confirmed') { %>
+            <form class="inline" method="post" action="/citas/<%= a.id %>/checkin"><button class="btn small" type="submit">Check-in</button></form>
+          <% } %>
+          <% if (a.status !== 'done' && a.status !== 'cancelled' && a.status !== 'in_service') { %>
+            <form class="inline" method="post" action="/citas/<%= a.id %>/estado/cancelar"><button class="btn small danger" type="submit">Cancelar</button></form>
+          <% } %>
+        </td>
+      </tr>
+    <% }) %>
+    </tbody>
+  </table>
+  <% } %>
+</div>
+
+<script>
+document.querySelectorAll('.staff-col').forEach(function (col) {
+  col.addEventListener('click', function (ev) {
+    if (ev.target.closest('.appt')) return;
+    var r = col.getBoundingClientRect();
+    var mins = Number(col.dataset.dayStart) + Math.round((ev.clientY - r.top) / Number(col.dataset.px) / 15) * 15;
+    window.location.href = '/citas/slot?fecha=' + col.dataset.date + '&staff_id=' + col.dataset.staff + '&start_min=' + mins;
+  });
+});
+</script>
+<%- include('../partials/foot') %>

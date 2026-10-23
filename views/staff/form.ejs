@@ -1,0 +1,21 @@
+<%- include('../partials/head') %>
+<div class="page-head">
+  <h1><%= member ? 'Editar miembro' : 'Nuevo miembro' %></h1>
+  <div class="spacer"></div>
+  <a class="btn secondary" href="/personal">Volver</a>
+</div>
+<div class="card">
+  <form method="post" action="/personal/guardar">
+    <% if (member) { %><input type="hidden" name="id" value="<%= member.id %>"><% } %>
+    <div class="row cols-2">
+      <div><label>Nombre *</label><input type="text" name="name" required value="<%= member ? member.name : '' %>"></div>
+      <div><label>Cargo</label><input type="text" name="position" value="<%= member ? member.position : 'Estilista' %>"></div>
+      <div><label>Teléfono</label><input type="text" name="phone" value="<%= member ? member.phone : '' %>"></div>
+      <div><label>Color de agenda</label><input type="text" name="color" placeholder="#0d9488" value="<%= member ? member.color : '' %>"></div>
+      <div><label style="display:flex;gap:.4rem;align-items:center"><input type="checkbox" name="active" style="width:auto" <%= !member || member.active ? 'checked' : '' %>> Activo</label></div>
+    </div>
+    <div style="height:.8rem"></div>
+    <button class="btn" type="submit">Guardar</button>
+  </form>
+</div>
+<%- include('../partials/foot') %>

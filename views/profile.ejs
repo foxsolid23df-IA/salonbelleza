@@ -1,0 +1,16 @@
+﻿<%- include('partials/head') %>
+<div class="page-head"><h1>Perfil</h1><div class="spacer"></div></div>
+<div class="card" style="max-width:420px">
+  <% if (typeof error !== 'undefined' && error) { %><div class="error-box"><%= error %></div><% } %>
+  <form method="post" action="/perfil/password">
+    <label>ContraseÃ±a actual *</label>
+    <input type="password" name="current" required>
+    <label>Nueva contraseÃ±a *</label>
+    <input type="password" name="next" required minLength="8">
+    <label>Confirmar nueva</label>
+    <input type="password" name="confirm" required minLength="8">
+    <div style="height:.7rem"></div>
+    <button class="btn block" type="submit">Cambiar contraseÃ±a</button>
+  </form>
+</div>
+<%- include('partials/foot') %>

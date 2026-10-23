@@ -1,0 +1,118 @@
+<%- include('../partials/head') %>
+<div class="page-head">
+  <h1>Caja</h1>
+  <div class="spacer"></div>
+  <form class="inline" method="get" action="/caja">
+    <input type="date" name="fecha" value="<%= date %>" onchange="this.form.submit()" style="width:auto">
+  </form>
+</div>
+
+<div class="grid-3" style="margin-bottom:1rem">
+  <div class="stat"><div class="k">Ventas del día</div><div class="v">$<%= totals.total.toFixed(2) %></div><div class="k" style="margin-top:.2rem"><%= tickets.length %> tickets</div></div>
+  <div class="stat"><div class="k">IVA cobrado</div><div class="v">$<%= totals.tax.toFixed(2) %></div></div>
+  <div class="stat"><div class="k">Gastos</div><div class="v">$<%= expenses.reduce((s,e) => s + Number(e.amount), 0).toFixed(2) %></div></div>
+</div>
+
+<div class="grid-2">
+  <div class="card">
+    <h2 style="margin-top:0">Estado de caja · <%= date %></h2>
+    <% if (!register) { %>
+      <form method="post" action="/caja/abrir">
+        <input type="hidden" name="date" value="<%= date %>">
+        <label>Fondo inicial</label>
+        <input type="number" step="0.01" name="opening_amount" value="0">
+        <div style="height:.6rem"></div>
+        <button class="btn" type="submit">Abrir caja</button>
+      </form>
+    <% } else { %>
+      <table class="data">
+        <tbody>
+          <tr><td>Estado</td><td class="num"><span class="badge <%= register.status === 'open' ? 'confirmed' : 'paid' %>"><%= register.status === 'open' ? 'Abierta' : 'Cerrada' %></span></td></tr>
+          <tr><td>Fondo inicial</td><td class="num">$<%= Number(register.opening_amount).toFixed(2) %></td></tr>
+          <% Object.keys(methodNames).forEach(k => { %>
+            <tr><td><%= methodLabels[k] %></td><td class="num">$<%= Number(methodNames[k]).toFixed(2) %></td></tr>
+          <% }) %>
+          <tr><td>Gastos</td><td class="num">-$<%= expenses.reduce((s,e) => s + Number(e.amount), 0).toFixed(2) %></td></tr>
+          <tr style="font-weight:700"><td>Efectivo esperado</td><td class="num"><%= expectedCash !== null ? '$' + expectedCash.toFixed(2) : '—' %></td></tr>
+        </tbody>
+      </table>
+      <% if (register.status === 'open') { %>
+        <form method="post" action="/caja/cerrar" style="margin-top:.7rem">
+          <input type="hidden" name="date" value="<%= date %>">
+          <label>Efectivo contado (cierre)</label>
+          <input type="number" step="0.01" name="closing_amount" required>
+          <div style="height:.6rem"></div>
+          <button class="btn danger" type="submit">Cerrar caja</button>
+        </form>
+      <% } else { %>
+        <p style="color:var(--muted);margin-top:.6rem">Cerrada el <%= register.closed_at %> · Contado $<%= Number(register.closing_amount).toFixed(2) %></p>
+      <% } %>
+    <% } %>
+  </div>
+
+  <div class="card">
+    <h2 style="margin-top:0">Gastos</h2>
+    <form class="filters" method="post" action="/caja/gasto">
+      <input type="hidden" name="date" value="<%= date %>">
+      <div class="f" style="flex:1"><label>Concepto</label><input type="text" name="concept" required></div>
+      <div class="f"><label>Categoría</label>
+        <select name="category">
+          <option value="varios">Varios</option><option value="insumos">Insumos</option>
+          <option value="servicios">Servicios</option><option value="nómina">Nómina</option><option value="renta">Renta</option>
+        </select>
+      </div>
+      <div class="f"><label>Monto</label><input type="number" step="0.01" name="amount" required></div>
+      <button class="btn secondary" type="submit">Agregar</button>
+    </form>
+    <% if (expenses.length) { %>
+    <table class="data" style="margin-top:.8rem">
+      <thead><tr><th>Concepto</th><th>Categoría</th><th class="num">Monto</th></tr></thead>
+      <tbody>
+      <% expenses.forEach(e => { %><tr><td><%= e.concept %></td><td><%= e.category %></td><td class="num">$<%= Number(e.amount).toFixed(2) %></td></tr><% }) %>
+      </tbody>
+    </table>
+    <% } %>
+  </div>
+</div>
+
+<div class="grid-2">
+  <div class="card">
+    <h2 style="margin-top:0">Tickets cobrados</h2>
+    <% if (!tickets.length) { %><p style="color:var(--muted)">Sin ventas.</p><% } %>
+    <% if (tickets.length) { %>
+    <table class="data">
+      <thead><tr><th>#</th><th>Hora</th><th>Cliente</th><th class="num">Total</th></tr></thead>
+      <tbody>
+      <% tickets.forEach(t => { %>
+        <tr>
+          <td><a href="/ventas?ticket=<%= t.id %>"><%= t.number %></a></td>
+          <td><%= (t.paid_at || '').slice(11, 16) %></td>
+          <td><%= t.client || 'Público General' %></td>
+          <td class="num">$<%= Number(t.total).toFixed(2) %></td>
+        </tr>
+      <% }) %>
+      </tbody>
+    </table>
+    <% } %>
+  </div>
+  <div class="card">
+    <h2 style="margin-top:0">Ventas por personal</h2>
+    <% if (!salesByStaff.length) { %><p style="color:var(--muted)">Sin datos.</p><% } %>
+    <% if (salesByStaff.length) { %>
+    <table class="data">
+      <thead><tr><th></th><th>Personal</th><th class="num">Servicios</th><th class="num">Productos</th></tr></thead>
+      <tbody>
+      <% salesByStaff.forEach(s => { %>
+        <tr>
+          <td><span class="dot" style="background:<%= s.color %>"></span></td>
+          <td><%= s.name %></td>
+          <td class="num">$<%= Number(s.services).toFixed(2) %></td>
+          <td class="num">$<%= Number(s.products).toFixed(2) %></td>
+        </tr>
+      <% }) %>
+      </tbody>
+    </table>
+    <% } %>
+  </div>
+</div>
+<%- include('../partials/foot') %>

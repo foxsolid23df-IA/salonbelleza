@@ -1,0 +1,70 @@
+<%- include('../partials/head') %>
+<div class="page-head">
+  <h1><%= client ? 'Cliente' : 'Nuevo cliente' %></h1>
+  <div class="spacer"></div>
+  <a class="btn secondary" href="/clientes">Volver</a>
+</div>
+<div class="card">
+  <form method="post" action="/clientes/guardar">
+    <% if (client) { %><input type="hidden" name="id" value="<%= client.id %>"><% } %>
+    <div class="row cols-2">
+      <div><label>Nombre *</label><input type="text" name="first_name" required value="<%= client ? client.first_name : '' %>"></div>
+      <div><label>Apellido paterno</label><input type="text" name="last_name1" value="<%= client ? client.last_name1 : '' %>"></div>
+      <div><label>Apellido materno</label><input type="text" name="last_name2" value="<%= client ? client.last_name2 : '' %>"></div>
+      <div><label>Teléfono</label><input type="text" name="phone" value="<%= client ? client.phone : '' %>"></div>
+      <div><label>Correo</label><input type="email" name="email" value="<%= client ? client.email : '' %>"></div>
+      <div><label>Instagram</label><input type="text" name="instagram" value="<%= client ? client.instagram : '' %>"></div>
+      <div><label>Saldo de crédito</label><input type="number" step="0.01" name="credit_balance" value="<%= client ? client.credit_balance : 0 %>"></div>
+    </div>
+    <label>Notas</label>
+    <textarea name="notes" rows="3"><%= client ? client.notes : '' %></textarea>
+    <div style="height:.8rem"></div>
+    <button class="btn" type="submit">Guardar</button>
+    <% if (client) { %>
+      <button class="btn danger" type="submit" formaction="/clientes/<%= client.id %>/baja" onclick="return confirm('¿Desactivar cliente?')">Desactivar</button>
+    <% } %>
+  </form>
+</div>
+<% if (client) { %>
+<div class="grid-2">
+  <div class="card">
+    <h2 style="margin-top:0">Historial de citas</h2>
+    <% if (!history.length) { %><p style="color:var(--muted)">Sin citas.</p><% } %>
+    <% if (history.length) { %>
+    <table class="data">
+      <thead><tr><th>Fecha</th><th>Servicios</th><th class="num">Gastado</th><th>Estado</th></tr></thead>
+      <tbody>
+      <% history.forEach(h => { %>
+        <tr>
+          <td><a href="/citas/<%= h.id %>"><%= h.date %> <%= String(Math.floor(h.start_min/60)).padStart(2,'0') %>:<%= String(h.start_min%60).padStart(2,'0') %></a></td>
+          <td><%= h.services || '—' %></td>
+          <td class="num"><%= h.spent ? '$' + Number(h.spent).toFixed(2) : '—' %></td>
+          <td><span class="badge <%= h.status %>"><%= h.status %></span></td>
+        </tr>
+      <% }) %>
+      </tbody>
+    </table>
+    <% } %>
+  </div>
+  <div class="card">
+    <h2 style="margin-top:0">Tickets</h2>
+    <% if (!tickets.length) { %><p style="color:var(--muted)">Sin tickets.</p><% } %>
+    <% if (tickets.length) { %>
+    <table class="data">
+      <thead><tr><th>#</th><th>Creado</th><th class="num">Total</th><th>Estado</th></tr></thead>
+      <tbody>
+      <% tickets.forEach(t => { %>
+        <tr>
+          <td><a href="/ventas?ticket=<%= t.id %>"><%= t.number %></a></td>
+          <td><%= t.created_at %></td>
+          <td class="num">$<%= Number(t.total).toFixed(2) %></td>
+          <td><span class="badge <%= t.status %>"><%= t.status %></span></td>
+        </tr>
+      <% }) %>
+      </tbody>
+    </table>
+    <% } %>
+  </div>
+</div>
+<% } %>
+<%- include('../partials/foot') %>

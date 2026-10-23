@@ -1,0 +1,23 @@
+{
+  "name": "salon-app",
+  "version": "0.2.0",
+  "private": true,
+  "description": "App propia de gestión de salón (clean-room, diseño e implementación propios)",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "test:smoke": "node tests/smoke-phase0.js",
+    "test:license": "node tools/license-server/test-phase3.js",
+    "test:update": "node tools/license-server/test-phase4.js",
+    "test:update-ui": "node tests/update-ui.js",
+    "test:update-helper": "node tests/update-helper.js"
+  },
+  "dependencies": {
+    "better-sqlite3": "^12.2.0",
+    "ejs": "^3.1.10",
+    "express": "^5.1.0",
+    "express-session": "^1.18.1",
+    "htmx.org": "^2.0.4"
+  }
+}

@@ -1,0 +1,29 @@
+<% if (tab === 'servicios') { %>
+  <% if (!items.length) { %><p style="color:var(--muted)">Sin resultados</p><% } %>
+  <% items.forEach(s => { %>
+    <div class="catalog-item">
+      <span class="nm"><%= s.name %> <small style="color:var(--muted)">· <%= s.duration_min %>min</small></span>
+      <span class="pr">$<%= Number(s.price).toFixed(2) %></span>
+      <form class="inline" method="post" action="/ventas/linea" hx-post="/ventas/linea" hx-target="#ticket-panel" hx-swap="innerHTML">
+        <input type="hidden" name="kind" value="service">
+        <input type="hidden" name="ref_id" value="<%= s.id %>">
+        <input type="hidden" name="ticket" value="<%= ticket.id %>">
+        <button class="btn small" type="submit">+</button>
+      </form>
+    </div>
+  <% }) %>
+<% } else { %>
+  <% if (!items.length) { %><p style="color:var(--muted)">Sin resultados</p><% } %>
+  <% items.forEach(p => { %>
+    <div class="catalog-item">
+      <span class="nm"><%= p.name %> <small style="color:<%= p.stock <= 2 ? 'var(--danger)' : 'var(--muted)' %>">· stock <%= p.stock %></small></span>
+      <span class="pr">$<%= Number(p.price).toFixed(2) %></span>
+      <form class="inline" method="post" action="/ventas/linea" hx-post="/ventas/linea" hx-target="#ticket-panel" hx-swap="innerHTML">
+        <input type="hidden" name="kind" value="product">
+        <input type="hidden" name="ref_id" value="<%= p.id %>">
+        <input type="hidden" name="ticket" value="<%= ticket.id %>">
+        <button class="btn small" type="submit">+</button>
+      </form>
+    </div>
+  <% }) %>
+<% } %>

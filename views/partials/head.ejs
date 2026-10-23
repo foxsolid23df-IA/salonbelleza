@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title><%= title %> · Salón</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <script src="/vendor/htmx/htmx.min.js"></script>
+</head>
+<body>
+<% if (user) { %>
+<div class="topbar">
+  <a class="brand" href="/">Salón</a>
+  <nav>
+    <a href="/" class="<%= title === 'Inicio' ? 'active' : '' %>">Inicio</a>
+    <a href="/citas" class="<%= title === 'Citas' ? 'active' : '' %>">Citas</a>
+    <a href="/ventas" class="<%= title === 'Ventas' ? 'active' : '' %>">Ventas</a>
+    <a href="/caja" class="<%= title === 'Caja' ? 'active' : '' %>">Caja</a>
+    <a href="/clientes" class="<%= title === 'Clientes' ? 'active' : '' %>">Clientes</a>
+    <a href="/servicios" class="<%= title === 'Servicios' ? 'active' : '' %>">Servicios</a>
+    <a href="/productos" class="<%= title === 'Productos' ? 'active' : '' %>">Productos</a>
+    <a href="/personal" class="<%= title === 'Personal' ? 'active' : '' %>">Personal</a>
+    <a href="/reportes" class="<%= title === 'Reportes' ? 'active' : '' %>">Reportes</a>
+  </nav>
+  <div class="spacer"></div>
+  <span class="user"><%= user.name %></span>
+  <% if (user.role === 'admin') { %><a class="user" href="/updates">Actualizaciones</a><% } %>
+  <form class="inline" method="post" action="/logout"><button class="linklike" type="submit">Salir</button></form>
+</div>
+<% } %>
+<div class="wrap">
+<% if (flash) { %><div class="flash"><%= flash %></div><% } %>
+<% if (user && user.role === 'admin' && typeof updateInfo !== 'undefined' && updateInfo && updateInfo.available) { %><div class="update-banner">Nueva versión <strong><%= updateInfo.version %></strong> disponible. <a href="/updates">Ver actualización</a></div><% } %>
+<% if (typeof showGraceBanner !== 'undefined' && showGraceBanner) { %><div class="error-box" style="margin-bottom:0">Licencia en período de gracia: <%= licenseGrace %> días restantes. Renueva o reactiva la licencia en /setup.</div><% } %>

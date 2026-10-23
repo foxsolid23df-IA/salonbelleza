@@ -1,0 +1,23 @@
+<%- include('../partials/head') %>
+<div class="page-head">
+  <h1>Personal</h1>
+  <div class="spacer"></div>
+  <a class="btn" href="/personal/nuevo">+ Nuevo miembro</a>
+</div>
+<div class="card">
+  <table class="data">
+    <thead><tr><th></th><th>Nombre</th><th>Cargo</th><th>Teléfono</th><th>Estado</th></tr></thead>
+    <tbody>
+    <% staff.forEach(s => { %>
+      <tr>
+        <td><span class="dot" style="background:<%= s.color %>"></span></td>
+        <td><a href="/personal/<%= s.id %>"><%= s.name %></a></td>
+        <td><%= s.position %></td>
+        <td><%= s.phone || '—' %></td>
+        <td><%= s.active ? 'Activo' : 'Inactivo' %></td>
+      </tr>
+    <% }) %>
+    </tbody>
+  </table>
+</div>
+<%- include('../partials/foot') %>

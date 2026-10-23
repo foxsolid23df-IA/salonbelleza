@@ -1,0 +1,17 @@
+<%- include('../partials/head') %>
+<div style="max-width:460px;margin:3rem auto">
+  <h1>¡Activación completada!</h1>
+  <div class="flash">
+    <div style="font-weight:600">Administrador: <%= email %></div>
+    <% if (seedPass) { %>
+      <div style="margin-top:.4rem">Contraseña temporal: <strong style="font-family:monospace;font-size:1.1rem"><%= seedPass %></strong></div>
+      <div style="color:#991b1b;font-size:.8rem;margin-top:.3rem">Guárdala ahora; no volverá a mostrarse.</div>
+    <% } else { %>
+      <div style="margin-top:.4rem;font-size:.8rem">Se ha activado la cuenta. Cambia tu contraseña desde <strong>Perfil</strong>.</div>
+    <% } %>
+  </div>
+  <p style="color:var(--muted);font-size:.8rem">Serás redirigido al iniciar sesión… cambia la contraseña al entrar.</p>
+  <a class="btn block" href="/login">Ir a iniciar sesión</a>
+</div>
+<script>setTimeout(function(){ window.location.href='/login'; }, 4000);</script>
+<%- include('../partials/foot') %>

@@ -1,0 +1,206 @@
+name: Build & Release Salón Suite
+
+on:
+  push:
+    branches:
+      - main
+      - master
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Versión sin prefijo v (ej. 0.2.0)"
+        required: true
+        default: "0.2.0"
+      channel:
+        description: "Canal de actualización"
+        type: choice
+        options:
+          - stable
+          - beta
+        default: stable
+      license_server:
+        description: "Servidor de licencias embebido (staging o producción)"
+        required: false
+        default: "https://get.salonsuite.com"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  APP_VERSION_RAW: ${{ github.event.inputs.version || github.ref_name }}
+  UPDATE_CHANNEL: ${{ github.event.inputs.channel || 'stable' }}
+  LICENSE_SERVER_URL: ${{ github.event.inputs.license_server || vars.LICENSE_SERVER_URL || 'https://get.salonsuite.com' }}
+
+jobs:
+  build:
+    runs-on: windows-latest
+    timeout-minutes: 45
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - name: Descargar repositorio
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Preparar Node 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Normalizar versión
+        id: version
+        run: |
+          $version = "$env:APP_VERSION_RAW".Trim()
+          if ($version.StartsWith("v")) { $version = $version.Substring(1) }
+          if ($version -notmatch '^\d+\.\d+\.\d+([-+][0-9A-Za-z.-]+)?$') {
+            if ($env:GITHUB_REF_TYPE -eq "tag") {
+              throw "Versión inválida en el tag: $version"
+            }
+            $version = "0.0.0-ci.$env:GITHUB_RUN_NUMBER"
+          }
+          "APP_VERSION=$version" >> $env:GITHUB_ENV
+          "version=$version" >> $env:GITHUB_OUTPUT
+          Write-Host "Versión de compilación: $version"
+
+      - name: Instalar dependencias de la app
+        run: npm ci
+
+      - name: Instalar dependencias del servidor de licencias
+        working-directory: tools/license-server
+        run: npm ci
+
+      - name: Pruebas Fase 3 y Fase 4
+        run: |
+          npm run test:license
+          npm run test:update
+          npm run test:update-ui
+          npm run test:update-helper
+
+      - name: Compilar instalador firmado
+        env:
+          WINDOWS_CERT_PFX_BASE64: ${{ secrets.WINDOWS_CERT_PFX_BASE64 }}
+          WINDOWS_CERT_PASSWORD: ${{ secrets.WINDOWS_CERT_PASSWORD }}
+          SIGNTOOL_TIMESTAMP_URL: ${{ vars.SIGNTOOL_TIMESTAMP_URL }}
+          LICENSE_PUBLIC_KEY_PEM: ${{ vars.LICENSE_PUBLIC_KEY_PEM }}
+        run: |
+          $params = @{
+            Version = $env:APP_VERSION
+            LicenseServer = $env:LICENSE_SERVER_URL
+            UpdateChannel = $env:UPDATE_CHANNEL
+          }
+          if ($env:LICENSE_PUBLIC_KEY_PEM) {
+            $publicKey = Join-Path $env:RUNNER_TEMP "public_key.pem"
+            [IO.File]::WriteAllText($publicKey, $env:LICENSE_PUBLIC_KEY_PEM.Trim() + "`n", [Text.UTF8Encoding]::new($false))
+            $params.PublicKey = $publicKey
+          }
+          & build\build-installer.ps1 @params
+
+      - name: Resumen de firma y hashes
+        run: |
+          $info = Get-Content dist\BUILD-INFO.json -Raw | ConvertFrom-Json
+          if ($info.signed) {
+            "Firma Authenticode: verificada" >> $env:GITHUB_STEP_SUMMARY
+          } else {
+            "Firma Authenticode: no configurada; se publican SHA-256 y aviso de SmartScreen." >> $env:GITHUB_STEP_SUMMARY
+          }
+          Get-Content dist\SHA256SUMS.txt | ForEach-Object { "- $_" } >> $env:GITHUB_STEP_SUMMARY
+
+      - name: Prueba de humo del instalador
+        if: vars.CI_SMOKE != 'false'
+        env:
+          SMOKE_LICENSE_KEY: ${{ secrets.SMOKE_LICENSE_KEY }}
+          SMOKE_LICENSE_EMAIL: ${{ secrets.SMOKE_LICENSE_EMAIL }}
+        run: |
+          $params = @{
+            Installer = "dist\SalonSuite-$env:APP_VERSION-setup.exe"
+            ExpectedVersion = $env:APP_VERSION
+          }
+          if ($env:SMOKE_LICENSE_KEY) {
+            $params.ActivationKey = $env:SMOKE_LICENSE_KEY
+            if ($env:SMOKE_LICENSE_EMAIL) { $params.ActivationEmail = $env:SMOKE_LICENSE_EMAIL }
+          }
+          & .\tests\ci-smoke.ps1 @params
+
+      - name: Subir artefactos
+        uses: actions/upload-artifact@v4
+        with:
+          name: salonsuite-${{ steps.version.outputs.version }}
+          if-no-files-found: error
+          retention-days: 30
+          path: |
+            dist/SalonSuite-${{ steps.version.outputs.version }}-setup.exe
+            dist/SalonSuite-${{ steps.version.outputs.version }}-portable.zip
+            dist/SHA256SUMS.txt
+            dist/BUILD-INFO.json
+
+      - name: Publicar en GitHub Releases
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/SalonSuite-${{ steps.version.outputs.version }}-setup.exe
+            dist/SalonSuite-${{ steps.version.outputs.version }}-portable.zip
+            dist/SHA256SUMS.txt
+            dist/BUILD-INFO.json
+          fail_on_unmatched_files: true
+          generate_release_notes: true
+
+      - name: Publicar en get.salonsuite.com
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_PORT: ${{ vars.DEPLOY_PORT || '22' }}
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_UPDATES_DIR: ${{ vars.DEPLOY_UPDATES_DIR || '/opt/salonsuite-license/updates' }}
+        run: |
+          if (-not $env:DEPLOY_HOST) {
+            Write-Host "DEPLOY_HOST no configurado: se omite la publicación en get.salonsuite.com"
+            exit 0
+          }
+          if (-not $env:DEPLOY_USER -or -not $env:DEPLOY_SSH_KEY) {
+            throw "DEPLOY_HOST está configurado pero faltan DEPLOY_USER o DEPLOY_SSH_KEY"
+          }
+
+          $setup = "dist\SalonSuite-$env:APP_VERSION-setup.exe"
+          $hash = (Get-FileHash -LiteralPath $setup -Algorithm SHA256).Hash.ToLower()
+          if ("$env:UPDATE_CHANNEL" -eq "beta") {
+            $manifestName = "beta.json"
+          } else {
+            $manifestName = "stable.json"
+          }
+
+          $manifest = [ordered]@{
+            version = $env:APP_VERSION
+            url = "/api/download/SalonSuite-$env:APP_VERSION-setup.exe"
+            sha256 = $hash
+            notes = "Versión $env:APP_VERSION"
+            published_at = [DateTime]::UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ")
+          }
+          $manifestPath = Join-Path $env:RUNNER_TEMP $manifestName
+          $manifest | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath $manifestPath -Encoding UTF8
+
+          $keyPath = Join-Path $env:RUNNER_TEMP "deploy_key"
+          [IO.File]::WriteAllText($keyPath, $env:DEPLOY_SSH_KEY.TrimEnd() + "`n", [Text.UTF8Encoding]::new($false))
+          & icacls $keyPath /inheritance:r /grant:r "$env:USERNAME:R" | Out-Null
+          $remote = "$($env:DEPLOY_USER)@$($env:DEPLOY_HOST)"
+          $remoteDir = $env:DEPLOY_UPDATES_DIR.TrimEnd('/')
+          $sshArgs = @("-i", $keyPath, "-p", "$env:DEPLOY_PORT", "-o", "StrictHostKeyChecking=accept-new", "-o", "IdentitiesOnly=yes")
+
+          scp @sshArgs $setup "$remote`:$remoteDir/files/"
+          if ($LASTEXITCODE -ne 0) { throw "scp del instalador falló" }
+          scp @sshArgs $manifestPath "$remote`:$remoteDir/$manifestName"
+          if ($LASTEXITCODE -ne 0) { throw "scp del manifiesto falló" }
+          ssh @sshArgs $remote "chmod a+r '$remoteDir/files/SalonSuite-$env:APP_VERSION-setup.exe' '$remoteDir/$manifestName'"
+          if ($LASTEXITCODE -ne 0) { throw "chmod remoto falló" }
+          Write-Host "publicado: $manifestName y SalonSuite-$env:APP_VERSION-setup.exe"
