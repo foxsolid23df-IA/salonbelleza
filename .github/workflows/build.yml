@@ -139,16 +139,24 @@ jobs:
           DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
           SMOKE_LICENSE_KEY: ${{ secrets.SMOKE_LICENSE_KEY }}
           LICENSE_PUBLIC_KEY_PEM: ${{ vars.LICENSE_PUBLIC_KEY_PEM }}
+          LICENSE_SERVER_URL: ${{ vars.LICENSE_SERVER_URL }}
+          CI_SMOKE: ${{ vars.CI_SMOKE }}
         run: |
           $info = Get-Content dist\BUILD-INFO.json -Raw | ConvertFrom-Json
           if (-not $info.signed) {
             throw "Un tag estable requiere un build con firma Authenticode verificada."
+          }
+          if (-not $env:LICENSE_SERVER_URL) {
+            throw "Un tag estable requiere LICENSE_SERVER_URL explicita."
           }
           if (-not $env:LICENSE_PUBLIC_KEY_PEM) {
             throw "Un tag estable requiere LICENSE_PUBLIC_KEY_PEM para embeber la llave publica."
           }
           if (-not $env:SMOKE_LICENSE_KEY) {
             throw "Un tag estable requiere SMOKE_LICENSE_KEY para probar la activacion real."
+          }
+          if ("$env:CI_SMOKE" -eq "false") {
+            throw "Un tag estable no puede desactivar la prueba de humo."
           }
           if (-not $env:DEPLOY_HOST -or -not $env:DEPLOY_USER -or -not $env:DEPLOY_SSH_KEY) {
             throw "Un tag estable requiere DEPLOY_HOST, DEPLOY_USER y DEPLOY_SSH_KEY."

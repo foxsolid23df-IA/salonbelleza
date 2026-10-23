@@ -206,7 +206,9 @@ Configuración:
 
 Sin certificado el workflow sigue siendo válido: publica los SHA-256 y el aviso de SmartScreen. La firma se certifica cuando se ejecute con un PFX real y `signtool verify /pa` pase.
 
-Entrega estable: un tag `vX.Y.Z` sin sufijo exige `BUILD-INFO.json` con `signed=true`, `LICENSE_PUBLIC_KEY_PEM`, `SMOKE_LICENSE_KEY`, `DEPLOY_HOST`, `DEPLOY_USER` y `DEPLOY_SSH_KEY`. Tras desplegar, el workflow valida `/health`, `/public` y el manifiesto firmado en `/api/version`; si algo falta, no se publica como estable. Los tags `-rc`/`-beta` son pre-release y no pasan por esa compuerta.
+Entrega estable: un tag `vX.Y.Z` sin sufijo exige `BUILD-INFO.json` con `signed=true`, `LICENSE_SERVER_URL` explícita, `LICENSE_PUBLIC_KEY_PEM`, `SMOKE_LICENSE_KEY`, `CI_SMOKE` distinto de `false`, `DEPLOY_HOST`, `DEPLOY_USER` y `DEPLOY_SSH_KEY`. Tras desplegar, el workflow valida `/health`, `/public` y el manifiesto firmado en `/api/version`; si algo falta, no se publica como estable. Los tags `-rc`/`-beta` son pre-release y no pasan por esa compuerta.
+
+`get.salonsuite.com` no está controlado por el proyecto: actualmente muestra una página de venta de HugeDomains. Hay que adquirirlo o usar otro dominio propio y desplegar allí el servidor antes de crear un tag estable.
 
 ### Fase 6 — QA y entrega (2 días)
 Matriz mínima:
