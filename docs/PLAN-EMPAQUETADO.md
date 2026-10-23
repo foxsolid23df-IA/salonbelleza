@@ -135,7 +135,7 @@ Verificación ejecutada:
 - `cd tools/license-server && npm test` → `PASS Fase 3: 30 comprobaciones`.
 - `npm run test:phase4` → manifiesto firmado, canales, descarga y verificación del cliente.
 - Producción: `/health` 200, `/public` con llave correcta, activación/verificación/revocación contra Turso y rechazo de segunda activación con `409 ACTIVATION_LIMIT`.
-- Manifiesto beta de `0.2.0-rc.1` publicado y firma Ed25519 verificada.
+- Manifiesto beta de `0.2.0-rc.2` publicado y firma Ed25519 verificada.
 
 Pendiente:
 
@@ -185,7 +185,7 @@ El workflow `.github/workflows/build.yml` se ejecuta en `windows-latest` con Nod
 10. En tags crea el GitHub Release y publica el manifiesto con `POST /admin/updates`.
 11. En tags estables verifica `/health`, `/public`, la coincidencia de la llave pública y el manifiesto firmado.
 
-Estado verificado: runs `39893564306`, `39894211283`, `39894666551`, `39895590459` y `39896021054` en verde. Pre-release de validación: [v0.2.0-rc.1](https://github.com/foxsolid23df-IA/salonbelleza/releases/tag/v0.2.0-rc.1), sin firma Authenticode y con SHA-256 publicados.
+Estado verificado: runs `39893564306`, `39894211283`, `39894666551`, `39895590459`, `39896021054`, `39899601490` y `39899893300` en verde. El run `39899601490` validó el smoke con activación real contra Vercel/Turso; el tag `v0.2.0-rc.2` publicó release y manifiesto beta firmado. Pre-release de validación: [v0.2.0-rc.2](https://github.com/foxsolid23df-IA/salonbelleza/releases/tag/v0.2.0-rc.2), sin firma Authenticode y con SHA-256 publicados.
 
 Configuración de GitHub:
 

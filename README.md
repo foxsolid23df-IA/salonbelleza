@@ -7,7 +7,7 @@ App de escritorio/salón desarrollada desde cero (clean-room) para uso interno, 
 - **0, 1 y 2: completadas.** Endurecimiento, runtime propio, instalador NSIS y lanzador verificados.
 - **3: completada y desplegada.** Servidor de licencias con licencias pre-emitidas, admin autenticado, rate-limit, revocación, auditoría y backups. Producción: Vercel + Turso en `https://salon-license.vercel.app`.
 - **4: completada en local.** Manifiesto firmado, banner/página admin, descarga con SHA-256, instalación silenciosa y rollback. Falta la prueba end-to-end en un Windows elevado con servicio/UAC.
-- **5: CI verificada y servidor real.** El workflow compila en `windows-latest`, genera instalador/ZIP/checksums, ejecuta el smoke con activación real contra Vercel/Turso y publica artefactos. La pre-release `v0.2.0-rc.1` está publicada sin firma Authenticode.
+- **5: CI verificada y servidor real.** El workflow compila en `windows-latest`, genera instalador/ZIP/checksums, ejecuta el smoke con activación real contra Vercel/Turso y publica artefactos. La pre-release `v0.2.0-rc.2` está publicada sin firma Authenticode.
 - **6: pendiente.** QA final y publicación de la entrega estable firmada.
 
 Detalle y pendientes: `docs/PLAN-EMPAQUETADO.md`.
@@ -208,7 +208,7 @@ build\build-installer.ps1 -Version 0.2.0 -LicenseServer https://salon-license.ve
 - Desinstalación con la app corriendo: elimina runtime, código, atajos, registro y proceso; conserva datos y licencia.
 - La ruta de servicio (admin) requiere UAC y no se pudo ejecutar en este entorno; el XML de WinSW y el flujo quedan listos para probar en un equipo elevado.
 - `.github/workflows/build.yml` usa Node 24, `build\build-installer.ps1`, NSIS, WinSW, checksums, prueba de humo, firma opcional y publicación; ver **CI/CD y firma** más abajo.
-- Fase 5 verificada en GitHub Actions (run `39893564306`, versión `0.0.0-ci.2`): el smoke instaló con NSIS, arrancó el servicio, validó `/health`, login, `/updates` y desinstaló con código 0. El artefacto se descargó y sus SHA-256 coinciden con `SHA256SUMS.txt`.
+- Fase 5 verificada en GitHub Actions (run `39899601490`, versión `0.0.0-ci.8`): el smoke instaló con NSIS, arrancó el servicio, validó `/health`, login, `/updates`, activó la licencia real contra Vercel/Turso y desinstaló con código 0. El artefacto se descargó y sus SHA-256 coinciden con `SHA256SUMS.txt`.
 
 ## Actualizaciones (Fase 4)
 
@@ -235,9 +235,9 @@ El workflow `.github/workflows/build.yml` se ejecuta en `windows-latest` con Nod
 9. En tags, crea el GitHub Release (pre-release si el tag contiene `-`) y publica el manifiesto con `POST /admin/updates`.
 10. En tags estables, verifica `/health`, `/public`, la coincidencia de la llave pública y el manifiesto firmado.
 
-Estado verificado: el [run 39893564306](https://github.com/foxsolid23df-IA/salonbelleza/actions/runs/39893564306) sobre `484d428` completó build, pruebas, smoke y carga de artefactos. El artefacto `salonsuite-0.0.0-ci.2` se descargó y sus dos hashes coinciden con `SHA256SUMS.txt`.
+Estado verificado: el [run 39899601490](https://github.com/foxsolid23df-IA/salonbelleza/actions/runs/39899601490) sobre `1a9ac85` completó build, pruebas, smoke con activación real y carga de artefactos. El [run 39899893300](https://github.com/foxsolid23df-IA/salonbelleza/actions/runs/39899893300) del tag `v0.2.0-rc.2` publicó el release y el manifiesto beta firmado.
 
-Pre-release de validación: [v0.2.0-rc.1](https://github.com/foxsolid23df-IA/salonbelleza/releases/tag/v0.2.0-rc.1), publicada sin firma Authenticode y con los SHA-256 en la página del release. El servidor de licencias de producción ya está desplegado y probado con activación real.
+Pre-release de validación: [v0.2.0-rc.2](https://github.com/foxsolid23df-IA/salonbelleza/releases/tag/v0.2.0-rc.2), publicada sin firma Authenticode y con los SHA-256 en la página del release. El servidor de licencias de producción ya está desplegado y probado con activación real.
 
 ### Disparar una versión
 
@@ -285,7 +285,7 @@ Un tag `vX.Y.Z` sin sufijo no se publica como estable si falta cualquiera de est
 
 Después del despliegue, el workflow consulta `/health`, `/public` y `/api/version?channel=stable`; falla si el servidor no responde, si la llave pública no coincide con la variable o si el manifiesto no corresponde a la versión y no está firmado. Los tags `-rc`/`-beta` quedan como pre-release y no pasan por esta compuerta.
 
-El servidor usa la URL `https://salon-license.vercel.app`; no se requiere dominio propio. La entrega estable sigue bloqueada hasta cargar el PFX y el `VERCEL_TOKEN` en GitHub.
+El servidor usa la URL `https://salon-license.vercel.app`; no se requiere dominio propio. La entrega estable sigue bloqueada hasta cargar el PFX y el `VERCEL_TOKEN` en GitHub. Las pre-releases `-rc`/`-beta` ya validan build, smoke, release y manifiesto firmado sin pasar por esa compuerta.
 
 ## Notas de limpieza
 
