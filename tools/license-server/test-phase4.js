@@ -124,6 +124,29 @@ async function main() {
   const blockedTraversal = await fetch(BASE + "/api/download/..%2Fstable.json");
   assert.equal(blockedTraversal.status, 404);
 
+  const published = await fetch(BASE + "/admin/updates", {
+    method: "POST",
+    headers: { Authorization: "Bearer test-admin", "Content-Type": "application/json" },
+    body: JSON.stringify({
+      channel: "beta",
+      version: "9.9.9-beta.1",
+      url: "https://example.com/SalonSuite-9.9.9-beta.1-setup.exe",
+      sha256,
+      notes: "Prueba beta",
+      published_at: new Date().toISOString(),
+    }),
+  });
+  assert.equal(published.status, 200);
+  const beta = await call("/api/version?channel=beta");
+  assert.equal(beta.status, 200);
+  assert.equal(beta.data.version, "9.9.9-beta.1");
+  assert.equal(beta.data.min_version, undefined);
+  const { signature: betaSignature, ok: _betaOk, ...betaManifest } = beta.data;
+  assert.equal(
+    crypto.verify(null, Buffer.from(canonicalJson(betaManifest), "utf8"), crypto.createPublicKey(publicKey), Buffer.from(betaSignature, "base64url")),
+    true
+  );
+
   process.env.LICENSE_SERVER_URL = BASE;
   process.env.LICENSE_PUBLIC_KEY = publicKey;
   process.env.APP_VERSION = "0.2.0";

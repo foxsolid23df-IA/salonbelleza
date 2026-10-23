@@ -1,9 +1,0 @@
-node_modules/
-data/
-backups/
-.env
-*.log
-test-phase3.js
-README.md
-DEPLOY.md
-updates/

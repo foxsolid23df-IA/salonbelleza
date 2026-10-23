@@ -21,9 +21,9 @@ on:
           - beta
         default: stable
       license_server:
-        description: "Servidor de licencias embebido (staging o producción)"
+        description: "Servidor de licencias embebido (Vercel)"
         required: false
-        default: "https://get.salonsuite.com"
+        default: "https://salon-license.vercel.app"
 
 permissions:
   contents: write
@@ -35,7 +35,7 @@ concurrency:
 env:
   APP_VERSION_RAW: ${{ github.event.inputs.version || github.ref_name }}
   UPDATE_CHANNEL: ${{ github.event.inputs.channel || 'stable' }}
-  LICENSE_SERVER_URL: ${{ github.event.inputs.license_server || vars.LICENSE_SERVER_URL || 'https://get.salonsuite.com' }}
+  LICENSE_SERVER_URL: ${{ github.event.inputs.license_server || vars.LICENSE_SERVER_URL || 'https://salon-license.vercel.app' }}
 
 jobs:
   build:
@@ -115,6 +115,28 @@ jobs:
           }
           Get-Content dist\SHA256SUMS.txt | ForEach-Object { "- $_" } >> $env:GITHUB_STEP_SUMMARY
 
+      - name: Preparar licencia de humo
+        if: vars.CI_SMOKE != 'false'
+        env:
+          LICENSE_SERVER_URL: ${{ vars.LICENSE_SERVER_URL }}
+          LICENSE_ADMIN_TOKEN: ${{ secrets.LICENSE_ADMIN_TOKEN }}
+          SMOKE_LICENSE_KEY: ${{ secrets.SMOKE_LICENSE_KEY }}
+        run: |
+          if (-not $env:SMOKE_LICENSE_KEY) {
+            Write-Host "SMOKE_LICENSE_KEY no configurada: el smoke se ejecutará sin activación."
+            exit 0
+          }
+          if (-not $env:LICENSE_SERVER_URL -or -not $env:LICENSE_ADMIN_TOKEN) {
+            throw "Faltan LICENSE_SERVER_URL o LICENSE_ADMIN_TOKEN para preparar la licencia de humo."
+          }
+          $base = $env:LICENSE_SERVER_URL.TrimEnd('/')
+          $headers = @{ Authorization = "Bearer $env:LICENSE_ADMIN_TOKEN" }
+          $license = Invoke-RestMethod -Uri "$base/admin/licenses/$env:SMOKE_LICENSE_KEY" -Headers $headers -TimeoutSec 30
+          foreach ($activation in @($license.activations | Where-Object { -not $_.revoked })) {
+            Invoke-RestMethod -Uri "$base/admin/licenses/$env:SMOKE_LICENSE_KEY/revoke" -Method Post -Headers $headers -TimeoutSec 30 | Out-Null
+          }
+          Write-Host "licencia de humo preparada"
+
       - name: Prueba de humo del instalador
         if: vars.CI_SMOKE != 'false'
         env:
@@ -134,13 +156,12 @@ jobs:
       - name: Validar requisitos de entrega estable
         if: startsWith(github.ref, 'refs/tags/v') && !contains(github.ref_name, '-')
         env:
-          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
-          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
-          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          LICENSE_ADMIN_TOKEN: ${{ secrets.LICENSE_ADMIN_TOKEN }}
           SMOKE_LICENSE_KEY: ${{ secrets.SMOKE_LICENSE_KEY }}
           LICENSE_PUBLIC_KEY_PEM: ${{ vars.LICENSE_PUBLIC_KEY_PEM }}
           LICENSE_SERVER_URL: ${{ vars.LICENSE_SERVER_URL }}
           CI_SMOKE: ${{ vars.CI_SMOKE }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
         run: |
           $info = Get-Content dist\BUILD-INFO.json -Raw | ConvertFrom-Json
           if (-not $info.signed) {
@@ -155,11 +176,14 @@ jobs:
           if (-not $env:SMOKE_LICENSE_KEY) {
             throw "Un tag estable requiere SMOKE_LICENSE_KEY para probar la activacion real."
           }
+          if (-not $env:LICENSE_ADMIN_TOKEN) {
+            throw "Un tag estable requiere LICENSE_ADMIN_TOKEN para publicar el manifiesto."
+          }
+          if (-not $env:VERCEL_TOKEN) {
+            throw "Un tag estable requiere VERCEL_TOKEN para desplegar el servidor."
+          }
           if ("$env:CI_SMOKE" -eq "false") {
             throw "Un tag estable no puede desactivar la prueba de humo."
-          }
-          if (-not $env:DEPLOY_HOST -or -not $env:DEPLOY_USER -or -not $env:DEPLOY_SSH_KEY) {
-            throw "Un tag estable requiere DEPLOY_HOST, DEPLOY_USER y DEPLOY_SSH_KEY."
           }
           Write-Host "requisitos de entrega estable: OK"
 
@@ -175,6 +199,20 @@ jobs:
             dist/SHA256SUMS.txt
             dist/BUILD-INFO.json
 
+      - name: Desplegar servidor de licencias en Vercel
+        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          if (-not $env:VERCEL_TOKEN) {
+            Write-Host "VERCEL_TOKEN no configurado: se omite el despliegue del servidor."
+            exit 0
+          }
+          npx --yes vercel@latest link --yes --project salon-license --team gabinotrejos-projects --cwd tools/license-server --token $env:VERCEL_TOKEN
+          if ($LASTEXITCODE -ne 0) { throw "vercel link falló" }
+          npx --yes vercel@latest deploy --prod --yes --cwd tools/license-server --token $env:VERCEL_TOKEN
+          if ($LASTEXITCODE -ne 0) { throw "vercel deploy falló" }
+
       - name: Publicar en GitHub Releases
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
@@ -188,64 +226,47 @@ jobs:
           generate_release_notes: true
           prerelease: ${{ contains(github.ref_name, '-') }}
 
-      - name: Publicar en get.salonsuite.com
+      - name: Publicar actualización en Vercel
         if: startsWith(github.ref, 'refs/tags/v')
         env:
-          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
-          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
-          DEPLOY_PORT: ${{ vars.DEPLOY_PORT || '22' }}
-          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
-          DEPLOY_UPDATES_DIR: ${{ vars.DEPLOY_UPDATES_DIR || '/opt/salonsuite-license/updates' }}
+          LICENSE_SERVER_URL: ${{ vars.LICENSE_SERVER_URL }}
+          LICENSE_ADMIN_TOKEN: ${{ secrets.LICENSE_ADMIN_TOKEN }}
         run: |
-          if (-not $env:DEPLOY_HOST) {
-            Write-Host "DEPLOY_HOST no configurado: se omite la publicación en get.salonsuite.com"
-            exit 0
-          }
-          if (-not $env:DEPLOY_USER -or -not $env:DEPLOY_SSH_KEY) {
-            throw "DEPLOY_HOST está configurado pero faltan DEPLOY_USER o DEPLOY_SSH_KEY"
-          }
+          if (-not $env:LICENSE_SERVER_URL) { throw "Falta LICENSE_SERVER_URL" }
+          if (-not $env:LICENSE_ADMIN_TOKEN) { throw "Falta LICENSE_ADMIN_TOKEN" }
 
           $setup = "dist\SalonSuite-$env:APP_VERSION-setup.exe"
           $hash = (Get-FileHash -LiteralPath $setup -Algorithm SHA256).Hash.ToLower()
-          if ("$env:UPDATE_CHANNEL" -eq "beta") {
-            $manifestName = "beta.json"
-          } else {
-            $manifestName = "stable.json"
-          }
-
-          $manifest = [ordered]@{
+          $channel = if ("$env:APP_VERSION" -match '-') { "beta" } else { "$env:UPDATE_CHANNEL" }
+          $base = $env:LICENSE_SERVER_URL.TrimEnd('/')
+          $url = "https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/SalonSuite-$env:APP_VERSION-setup.exe"
+          $body = [ordered]@{
+            channel = $channel
             version = $env:APP_VERSION
-            url = "/api/download/SalonSuite-$env:APP_VERSION-setup.exe"
+            url = $url
             sha256 = $hash
             notes = "Versión $env:APP_VERSION"
             published_at = [DateTime]::UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ")
-          }
-          $manifestPath = Join-Path $env:RUNNER_TEMP $manifestName
-          $manifest | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath $manifestPath -Encoding UTF8
+          } | ConvertTo-Json -Depth 4
 
-          $keyPath = Join-Path $env:RUNNER_TEMP "deploy_key"
-          [IO.File]::WriteAllText($keyPath, $env:DEPLOY_SSH_KEY.TrimEnd() + "`n", [Text.UTF8Encoding]::new($false))
-          & icacls $keyPath /inheritance:r /grant:r "$env:USERNAME:R" | Out-Null
-          $remote = "$($env:DEPLOY_USER)@$($env:DEPLOY_HOST)"
-          $remoteDir = $env:DEPLOY_UPDATES_DIR.TrimEnd('/')
-          $sshArgs = @("-i", $keyPath, "-p", "$env:DEPLOY_PORT", "-o", "StrictHostKeyChecking=accept-new", "-o", "IdentitiesOnly=yes")
-
-          scp @sshArgs $setup "$remote`:$remoteDir/files/"
-          if ($LASTEXITCODE -ne 0) { throw "scp del instalador falló" }
-          scp @sshArgs $manifestPath "$remote`:$remoteDir/$manifestName"
-          if ($LASTEXITCODE -ne 0) { throw "scp del manifiesto falló" }
-          ssh @sshArgs $remote "chmod a+r '$remoteDir/files/SalonSuite-$env:APP_VERSION-setup.exe' '$remoteDir/$manifestName'"
-          if ($LASTEXITCODE -ne 0) { throw "chmod remoto falló" }
-          Write-Host "publicado: $manifestName y SalonSuite-$env:APP_VERSION-setup.exe"
+          $headers = @{ Authorization = "Bearer $env:LICENSE_ADMIN_TOKEN" }
+          $result = Invoke-RestMethod -Uri "$base/admin/updates" -Method Post -Headers $headers -ContentType "application/json" -Body $body -TimeoutSec 60
+          if (-not $result.ok) { throw "No se pudo publicar el manifiesto" }
+          Write-Host "manifiesto $channel publicado para $env:APP_VERSION"
 
       - name: Verificar servidor de licencias
         if: startsWith(github.ref, 'refs/tags/v') && !contains(github.ref_name, '-')
+        env:
+          LICENSE_PUBLIC_KEY_PEM: ${{ vars.LICENSE_PUBLIC_KEY_PEM }}
         run: |
           $base = $env:LICENSE_SERVER_URL.TrimEnd('/')
           $health = Invoke-RestMethod -Uri "$base/health" -TimeoutSec 30
           if (-not $health.ok) { throw "El servidor de licencias no reporta ok en /health" }
           $public = Invoke-RestMethod -Uri "$base/public" -TimeoutSec 30
           if (-not $public.ok -or -not $public.public_key) { throw "El servidor de licencias no publica su llave en /public" }
+          if ($public.public_key.Trim() -ne $env:LICENSE_PUBLIC_KEY_PEM.Trim()) {
+            throw "La llave publica del servidor no coincide con LICENSE_PUBLIC_KEY_PEM."
+          }
           $manifest = Invoke-RestMethod -Uri "$base/api/version?channel=$env:UPDATE_CHANNEL" -TimeoutSec 30
           if (-not $manifest.ok -or [string]$manifest.version -ne $env:APP_VERSION -or -not $manifest.sha256 -or -not $manifest.signature) {
             throw "El manifiesto remoto no corresponde a la version estable o no esta firmado."

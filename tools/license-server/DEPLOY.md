@@ -1,275 +1,144 @@
 # Despliegue del servidor de licencias
 
-Arquitectura: un VPS con Docker Compose. El servicio Node escucha solo en la red interna; Caddy publica HTTPS con certificado automático de Let's Encrypt.
+Arquitectura elegida: Vercel para la API HTTPS y Turso para la base SQLite persistente. El servidor no usa el sistema de archivos de Vercel; las licencias, activaciones, eventos y manifiestos viven en Turso.
 
 ```
-Internet 443 -> Caddy (TLS) -> license:4000 (Node + SQLite)
-                                 |
-                                 +-> volumen license-data (/data)
+Internet 443 -> Vercel Function (Express) -> Turso (SQLite serverless)
+                                      \-> GitHub Releases (instaladores)
 ```
+
+No se necesita dominio propio: la URL de producción es `https://salon-license.vercel.app`.
 
 ## 1. Requisitos
 
-- VPS Linux con Docker Engine 24+ y el plugin `docker compose`.
-- Dominio o subdominio con registro DNS `A` apuntando a la IP del VPS.
-- Puertos 80 y 443 abiertos (Caddy necesita el 80 para validar el certificado).
-- Acceso SSH con llave.
+- Cuenta de Vercel y CLI (`npm i -g vercel`).
+- Proyecto `salon-license` en el equipo `gabinotrejos-projects`.
+- Integración gratuita **Turso Cloud** desde Vercel Marketplace.
+- Token de Vercel para que GitHub Actions pueda desplegar (`VERCEL_TOKEN`).
 
-## 2. DNS y firewall
-
-Crea el registro:
-
-```
-get.salonsuite.com.  A  <IP_DEL_VPS>
-```
-
-En el VPS:
-
-```bash
-sudo ufw allow 22/tcp
-sudo ufw allow 80/tcp
-sudo ufw allow 443/tcp
-sudo ufw enable
-```
-
-No publiques el puerto 4000: en `docker-compose.yml` el servicio usa `expose`, no `ports`.
-
-## 3. Configuración
-
-Copia la carpeta `tools/license-server` al VPS (por ejemplo `/opt/salonsuite-license`) y entra en ella:
-
-```bash
-cd /opt/salonsuite-license
-cp .env.example .env
-```
-
-Genera un token de administración largo y pégalo en `LICENSE_ADMIN_TOKEN`:
-
-```bash
-openssl rand -hex 32
-```
-
-Valores recomendados en producción:
-
-```
-DOMAIN=get.salonsuite.com
-LICENSE_ADMIN_TOKEN=<token-de-64-hex>
-LICENSE_SEED_DEMO=0
-LICENSE_ALLOW_SELF_ACTIVATION=0
-LICENSE_TOKEN_DAYS=30
-LICENSE_GRACE_DAYS=14
-LICENSE_RL_ACTIVATE=10
-LICENSE_RL_VERIFY=60
-LICENSE_RL_ADMIN=30
-LICENSE_BACKUP_KEEP=14
-```
-
-`LICENSE_SEED_DEMO=1` solo se usa en desarrollo: crea la licencia demo conocida. `LICENSE_ALLOW_SELF_ACTIVATION=1` permite que cualquier UUID se active; nunca en producción.
-
-## 4. Arranque
-
-```bash
-docker compose config
-docker compose up -d --build
-docker compose ps
-docker compose logs -f license caddy
-```
-
-Comprobaciones:
-
-```bash
-curl -fsS https://get.salonsuite.com/health
-curl -fsS https://get.salonsuite.com/public
-```
-
-`/health` debe devolver `{"ok":true,...}` y `/public` la llave pública Ed25519.
-
-## 5. Emitir licencias
-
-Las licencias son pre-emitidas: la app no puede crearlas por sí sola. El servidor crea el par de llaves Ed25519 en `/data/keys` en el primer arranque.
-
-CLI dentro del contenedor:
-
-```bash
-docker compose exec license node admin.js create pro cliente@dominio.com
-docker compose exec license node admin.js list
-docker compose exec license node admin.js show <key>
-docker compose exec license node admin.js events 50
-```
-
-API de administración (requiere el token):
-
-```bash
-TOKEN=<LICENSE_ADMIN_TOKEN>
-
-curl -fsS -X POST https://get.salonsuite.com/admin/licenses \
-  -H "Authorization: Bearer $TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"plan":"pro","cliente_email":"cliente@dominio.com"}'
-
-curl -fsS https://get.salonsuite.com/admin/licenses \
-  -H "Authorization: Bearer $TOKEN"
-```
-
-Planes: `starter` (4 estilistas), `pro` (10), `enterprise` (ilimitado, `staff_max=0`).
-
-Una licencia admite una activación activa. Para mover un cliente a otro equipo:
-
-```bash
-# 1. localizar el HWID en el detalle de la licencia
-docker compose exec license node admin.js show <key>
-
-# 2. revocar el equipo anterior
-docker compose exec license node admin.js revoke <hwid>
-
-# 3. el cliente activa en el equipo nuevo con la misma licencia
-```
-
-También existe `POST /admin/revoke`, `POST /admin/reactivate`, `POST /admin/licenses/:key/revoke`, `GET /admin/events` y `POST /revoke` (todos con token).
-
-## 6. Conectar el instalador
-
-El instalador usa `https://get.salonsuite.com` por defecto. Para compilar apuntando a tu dominio:
+## 2. Crear el proyecto y la base
 
 ```powershell
-build\build-installer.ps1 -Version 0.2.0 -LicenseServer https://get.salonsuite.com
+vercel project add salon-license --scope gabinotrejos-projects
+vercel link --yes --scope gabinotrejos-projects --project salon-license --cwd tools/license-server
+vercel integration add tursocloud/database --plan starter --name salon-license-db --scope gabinotrejos-projects --cwd tools/license-server -e production -e preview -e development
 ```
 
-Opcionalmente embebe la llave pública. Así el cliente confía en las licencias incluso antes de la primera activación:
+La integración crea `TURSO_DATABASE_URL` y `TURSO_AUTH_TOKEN` en el proyecto. Si Vercel pide aceptar los términos de Turso, hazlo en la URL que muestra el comando y vuelve a ejecutarlo.
 
-```bash
-docker compose exec license cat /data/keys/public.pem > public.pem
-```
+## 3. Variables de entorno
+
+Configura en Vercel (Production y Preview):
+
+| Variable | Uso |
+|---|---|
+| `TURSO_DATABASE_URL` | URL de la base Turso; la crea la integración |
+| `TURSO_AUTH_TOKEN` | Token de Turso; lo crea la integración |
+| `LICENSE_ADMIN_TOKEN` | Token largo para `/admin/*` y publicación de manifiestos |
+| `LICENSE_PRIVATE_KEY_PEM` | Llave privada Ed25519 en PEM |
+| `LICENSE_PUBLIC_KEY_PEM` | Llave pública Ed25519 en PEM |
+| `LICENSE_TRUST_PROXY` | `1` para confiar en el proxy de Vercel |
+| `LICENSE_ALLOW_SELF_ACTIVATION` | `0` en producción |
+| `LICENSE_SEED_DEMO` | `0` en producción |
+| `LICENSE_TOKEN_DAYS` | Vigencia del token; por defecto `30` |
+| `LICENSE_GRACE_DAYS` | Gracia offline; por defecto `14` |
+| `LICENSE_RL_ACTIVATE` | Límite de activaciones por minuto |
+| `LICENSE_RL_VERIFY` | Límite de verificaciones por minuto |
+| `LICENSE_RL_ADMIN` | Límite de administración por minuto |
+| `LICENSE_RL_UPDATES` | Límite de consultas de versión por minuto |
+| `LICENSE_SERVER_VERSION` | Versión informativa que devuelve `/health` |
+
+Genera las llaves una sola vez y guárdalas fuera del repositorio:
 
 ```powershell
-build\build-installer.ps1 -Version 0.2.0 -LicenseServer https://get.salonsuite.com -PublicKey C:\ruta\public.pem
+node -e "const c=require('crypto'),f=require('fs');const p=c.generateKeyPairSync('ed25519');f.writeFileSync('private.pem',p.privateKey.export({type:'pkcs8',format:'pem'}));f.writeFileSync('public.pem',p.publicKey.export({type:'spki',format:'pem'}));"
 ```
 
-Sin `-PublicKey`, la app guarda la llave que recibe por HTTPS en `app\.license\public_key.pem` durante la activación. Con `-PublicKey`, también existe `app\public_key.pem` como respaldo.
+Carga los PEM con `vercel env add NOMBRE production --sensitive` (y repite para `preview`). La llave privada no debe commitearse ni imprimirse.
 
-## 7. Backups y custodia de llaves
+## 4. Desplegar
 
-El backup de SQLite debe ser consistente; usa el script incluido (API `backup()` de SQLite, retención configurable):
-
-```bash
-docker compose exec -T license node backup.js
+```powershell
+vercel --prod --yes --cwd tools/license-server
 ```
 
-Cron diario en el VPS:
+La primera vez Vercel asigna una URL del tipo `https://salon-license-<hash>-<equipo>.vercel.app` y el alias estable `https://salon-license.vercel.app`.
 
-```cron
-0 3 * * * cd /opt/salonsuite-license && docker compose exec -T license node backup.js >> /var/log/salonsuite-backup.log 2>&1
+## 5. Verificar
+
+```powershell
+$base = "https://salon-license.vercel.app"
+Invoke-RestMethod "$base/health"
+Invoke-RestMethod "$base/public"
+Invoke-RestMethod "$base/api/version?channel=stable"
 ```
 
-Los archivos quedan en el volumen `license-data`, bajo `/data/backups`. Cópialos fuera del VPS y cífralos:
+`/health` debe devolver `ok: true`. `/public` debe devolver la llave pública. `/api/version` devuelve `404 NO_UPDATE_MANIFEST` hasta que se publique un manifiesto; eso es normal antes del primer release.
 
-```bash
-docker run --rm -v salonsuite-license_license-data:/data -v "$PWD/offsite:/out" alpine \
-  tar czf /out/salonsuite-licenses-$(date +%F).tgz -C /data backups keys
-gpg --symmetric --cipher-algo AES256 offsite/salonsuite-licenses-$(date +%F).tgz
+## 6. Administración
+
+Todas las rutas `/admin/*` requieren `Authorization: Bearer <LICENSE_ADMIN_TOKEN>`.
+
+```powershell
+$h = @{ Authorization = "Bearer $env:LICENSE_ADMIN_TOKEN" }
+$body = @{ plan = "pro"; cliente_email = "cliente@ejemplo.com" } | ConvertTo-Json
+Invoke-RestMethod "https://salon-license.vercel.app/admin/licenses" -Method Post -Headers $h -ContentType "application/json" -Body $body
 ```
 
-Guarda `keys/private.pem` cifrado y separado del servidor. Es la llave que firma todas las licencias y los manifiestos de actualización:
+Comandos disponibles: crear licencia, listar, ver detalle, revocar/reactivar equipo, eventos y publicación de manifiestos. La CLI local `node admin.js` sigue funcionando contra un archivo SQLite si se define `LICENSE_DATA_DIR`; para producción usa la API.
 
-- Si se pierde, los tokens emitidos dejan de ser verificables y hay que generar llaves nuevas y reactivar a todos los clientes.
-- Si se filtra, cualquiera puede firmar licencias: rota el par y reemite licencias.
-- Nunca la subas al repositorio ni la envíes por correo/chat.
+## 7. Publicar una actualización
 
-Restauración: detén el stack, restaura el volumen `license-data` (base de datos y `keys/`), y arranca de nuevo. El dominio debe ser el mismo.
+El workflow lo hace en cada tag. Manualmente:
 
-## 8. Actualizar el servidor
-
-```bash
-cd /opt/salonsuite-license
-docker compose build --pull
-docker compose up -d
-docker compose ps
+```powershell
+$body = @{
+  channel = "stable"
+  version = "0.2.1"
+  url = "https://github.com/foxsolid23df-IA/salonbelleza/releases/download/v0.2.1/SalonSuite-0.2.1-setup.exe"
+  sha256 = "<sha256 del setup>"
+  notes = "Versión 0.2.1"
+  published_at = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
+} | ConvertTo-Json -Depth 4
+Invoke-RestMethod "https://salon-license.vercel.app/admin/updates" -Method Post -Headers $h -ContentType "application/json" -Body $body
 ```
 
-El volumen `license-data` se conserva. Los endpoints y el esquema son compatibles con versiones anteriores (el servidor agrega columnas faltantes al arrancar).
+Los tags con sufijo `-rc`/`-beta` se publican en el canal `beta`; los tags `vX.Y.Z` en `stable`.
 
-## 9. Seguridad operativa
+## 8. Respaldos
 
-- `LICENSE_ADMIN_TOKEN` vacío deshabilita `/admin/*` y `/revoke` (responden 503/401). No lo dejes vacío.
-- Rate limit: 10 activaciones/min, 60 verificaciones/min, 30 operaciones admin/min y 120 consultas de versión/min por IP. Ajustable con `LICENSE_RL_*`; `LICENSE_TRUST_PROXY=1` (ya configurado en Compose) hace que Caddy informe la IP real.
-- Caddy fuerza HTTPS y HSTS. El certificado se renueva solo.
-- El contenedor corre como usuario `node`, no como root.
-- Revisa `docker compose logs license` y `docker compose logs caddy` ante errores 401/403/429.
-- La auditoría queda en la tabla `events`: activaciones, intentos denegados, revocaciones y reactivaciones.
-- Si quieres limitar la administración a una IP fija, añade una regla en el firewall del VPS o un `@admin` matcher en `Caddyfile`; el token sigue siendo obligatorio.
+Turso conserva la base y permite restaurar desde su panel. Para una copia lógica:
 
-## 10. Diagnóstico
-
-| Síntoma | Causa probable | Acción |
-|---|---|---|
-| Caddy no obtiene certificado | DNS incorrecto o puertos 80/443 cerrados | Verifica `dig` y `ufw status`; `docker compose logs caddy` |
-| 502 Bad Gateway | Contenedor `license` caído | `docker compose ps`, `docker compose logs license` |
-| 401 en admin | Token ausente o distinto | Revisa `Authorization: Bearer ...` y `.env` |
-| 503 en admin | `LICENSE_ADMIN_TOKEN` vacío | Configúralo y reinicia |
-| 404 al activar | Licencia no emitida | `node admin.js create ...` |
-| 409 al activar | Licencia ya usada en otro equipo | Revoca el HWID anterior |
-| 429 | Rate limit | Espera la ventana de un minuto o ajusta `LICENSE_RL_*` |
-| Error al compilar `better-sqlite3` | Sin toolchain en la etapa de build | Usa la imagen completa `node:24-bookworm` (ya configurada) |
-
-Pruebas locales del servidor (no requieren Docker):
-
-```bash
-cd tools/license-server
-npm test
-npm run test:phase4
+```powershell
+$env:TURSO_DATABASE_URL = "..."
+$env:TURSO_AUTH_TOKEN = "..."
+npm run backup
 ```
 
-## 11. Publicar actualizaciones de la app
+El backup genera un JSON con licencias, activaciones, eventos y manifiestos en `data/backups/`. Guarda la llave privada por separado; sin ella no se pueden firmar tokens ni manifiestos nuevos.
 
-El servidor sirve el manifiesto firmado y los instaladores desde `updates/`, montado en el contenedor como `/updates` (solo lectura).
+## 9. GitHub Actions
 
-1. Compila la versión nueva:
+Variables del repositorio:
 
-   ```powershell
-   build\build-installer.ps1 -Version 0.2.1 -LicenseServer https://get.salonsuite.com
-   ```
+- `LICENSE_SERVER_URL=https://salon-license.vercel.app`
+- `LICENSE_PUBLIC_KEY_PEM` (contenido del PEM público)
+- `CI_SMOKE=true`
+- `SIGNTOOL_TIMESTAMP_URL=http://timestamp.digicert.com`
 
-2. Copia el instalador a `updates/files/` en el VPS:
+Secretos:
 
-   ```bash
-   cp SalonSuite-0.2.1-setup.exe /opt/salonsuite-license/updates/files/
-   chmod -R a+rX /opt/salonsuite-license/updates
-   sha256sum /opt/salonsuite-license/updates/files/SalonSuite-0.2.1-setup.exe
-   ```
+- `LICENSE_ADMIN_TOKEN`
+- `SMOKE_LICENSE_KEY`
+- `SMOKE_LICENSE_EMAIL`
+- `VERCEL_TOKEN` (para desplegar el servidor en cada push/tag)
+- `WINDOWS_CERT_PFX_BASE64`
+- `WINDOWS_CERT_PASSWORD`
 
-3. Crea `/opt/salonsuite-license/updates/stable.json`:
+El workflow revoca la activación anterior de la licencia de humo antes de instalar, para que cada runner pueda activar desde un HWID nuevo. Después del despliegue consulta `/health`, `/public` y el manifiesto firmado.
 
-   ```json
-   {
-     "version": "0.2.1",
-     "url": "/api/download/SalonSuite-0.2.1-setup.exe",
-     "sha256": "<hash>",
-     "notes": "Correcciones y mejoras de estabilidad.",
-     "min_version": "0.2.0",
-     "published_at": "2026-10-21T00:00:00Z"
-   }
-   ```
+## 10. Limitaciones de Vercel
 
-4. Verifica el manifiesto firmado:
-
-   ```bash
-   curl -fsS "https://get.salonsuite.com/api/version?channel=stable"
-   ```
-
-   No es necesario reiniciar el contenedor: el archivo se lee en cada solicitud. La firma se genera con `private.pem` y la app la valida antes de descargar.
-
-5. Publica `beta.json` para pilotos. El cliente usa `stable` por defecto; en la instalación beta define `SALON_UPDATE_CHANNEL=beta` en `app\.env`.
-
-### Publicación automática desde GitHub Actions
-
-El workflow de Fase 5 compila el mismo artefacto que se publica en GitHub Releases y, cuando existen los secretos SSH, lo copia a `updates/files/` y escribe `stable.json` o `beta.json` sin intervención manual. Configura `DEPLOY_HOST`, `DEPLOY_USER` y `DEPLOY_SSH_KEY`; opcionalmente `DEPLOY_PORT` y `DEPLOY_UPDATES_DIR` (por defecto `/opt/salonsuite-license/updates`). Si `DEPLOY_HOST` no está configurado, el workflow omite el despliegue y deja el release de GitHub como artefacto principal.
-
-El manifiesto se firma en el servidor con `private.pem`; no copies una firma precalculada. Después de cada publicación, verifica:
-
-```bash
-curl -fsS "https://get.salonsuite.com/api/version?channel=stable"
-```
-
-La app descarga el setup, comprueba el SHA-256 y la firma Ed25519 antes de instalar.
-
-La app revisa cada 24 h y también al abrir **Actualizaciones** (solo administradores). Descarga a `%TEMP%`, verifica SHA-256 y firma, ejecuta el setup en modo silencioso y conserva datos/licencia. Si la versión nueva no responde en 90 s, el helper restaura `app.old` automáticamente. Los detalles de formato están en `updates/README.md`.
+- El rate limit es por instancia de función; para volúmenes altos usa un almacén distribuido.
+- La función tiene límite de tamaño de cuerpo y tiempo de ejecución; las descargas de instaladores van a GitHub Releases, no por la función.
+- No se usa `better-sqlite3` en producción: Turso habla SQLite por HTTP y evita un sistema de archivos efímero.

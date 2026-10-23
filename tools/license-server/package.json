@@ -1,6 +1,6 @@
 {
   "name": "salon-license-server",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "private": true,
   "description": "Servidor de licencias Salón Suite (Ed25519, HWID, administración)",
   "main": "index.js",
@@ -16,7 +16,7 @@
     "node": ">=20"
   },
   "dependencies": {
-    "better-sqlite3": "^12.2.0",
+    "@libsql/client": "^0.18.0",
     "express": "^5.1.0"
   },
   "license": "UNLICENSED"

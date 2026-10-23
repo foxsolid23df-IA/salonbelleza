@@ -1,0 +1,9 @@
+node_modules
+data
+backups
+test-phase3.js
+test-phase4.js
+Dockerfile
+docker-compose.yml
+Caddyfile
+DEPLOY.md

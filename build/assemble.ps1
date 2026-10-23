@@ -1,6 +1,6 @@
 ﻿param(
   [string]$Version = "0.2.0",
-  [string]$LicenseServer = "https://get.salonsuite.com",
+  [string]$LicenseServer = "https://salon-license.vercel.app",
   [string]$PublicKey = "",
   [switch]$NoZip,
   [string]$UpdateChannel = "stable"
