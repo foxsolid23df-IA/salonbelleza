@@ -6,7 +6,7 @@ App de escritorio/salón desarrollada desde cero (clean-room) para uso interno, 
 - **0, 1 y 2: completadas.** Endurecimiento, runtime propio, instalador NSIS y lanzador verificados.
 - **3: completada en local y despliegue preparado.** Servidor con licencias pre-emitidas, admin autenticado, rate-limit, revocación, backups y Docker/Caddy. Falta ejecutarlo en un VPS real y custodiar la llave privada.
 - **4: completada en local.** Manifiesto firmado, banner/página admin, descarga con SHA-256, instalación silenciosa y rollback. Falta la prueba end-to-end sobre una instalación Windows real con servicio/UAC.
-- **5: implementada en código.** Workflow de GitHub Actions para Windows, instalador/ZIP/checksums, prueba de humo, firma Authenticode opcional, GitHub Releases y publicación en `get.salonsuite.com`. Falta la primera ejecución con certificado y secretos SSH reales.
+- **5: verificada en CI sin firma.** El workflow compila en `windows-latest`, genera instalador/ZIP/checksums, pasa la prueba de humo real (servicio, `/health`, login, actualizaciones y desinstalación) y publica artefactos. El release de validación se publica como pre-release; firma Authenticode y despliegue en `get.salonsuite.com` quedan pendientes de certificado y secretos SSH.
 - **6: pendiente.** QA final y matriz de entrega.
 - Detalle y pendientes: `docs/PLAN-EMPAQUETADO.md`.
 
@@ -178,7 +178,7 @@ build\build-installer.ps1 -Version 0.2.0 -LicenseServer https://get.salonsuite.c
 - Desinstalación con la app corriendo: elimina runtime, código, atajos, registro y proceso; conserva datos y licencia.
 - La ruta de servicio (admin) requiere UAC y no se pudo ejecutar en este entorno; el XML de WinSW y el flujo quedan listos para probar en un equipo elevado.
 - `.github/workflows/build.yml` ya usa Node 24, `build\build-installer.ps1`, NSIS, WinSW, checksums, prueba de humo, firma opcional y publicación; ver **CI/CD y firma** más abajo.
-- Fase 5 verificada en local sin certificado: el build genera setup, ZIP y `BUILD-INFO.json`; las pruebas de Fase 3/4 pasan. La ejecución real del workflow y el smoke con servicio/UAC deben validarse en GitHub Actions o en un Windows elevado.
+- Fase 5 verificada en GitHub Actions (run `39893564306`, versión `0.0.0-ci.2`): el smoke instaló con NSIS, arrancó el servicio, validó `/health`, login, `/updates` y desinstaló con código 0. El artefacto se descargó y sus SHA-256 coinciden con `SHA256SUMS.txt`.
 
 ## Actualizaciones (Fase 4)
 - La app consulta `GET /api/version` al arrancar y cada 24 h; si hay una versión nueva muestra un banner y la página **Actualizaciones** (solo admin).
@@ -199,15 +199,17 @@ El workflow `.github/workflows/build.yml` se ejecuta en `windows-latest` con Nod
 5. Firma launcher, servicio y setup si existe certificado; si no, deja constancia en `BUILD-INFO.json`.
 6. Instala en modo silencioso en una carpeta temporal, comprueba servicio, `/health`, login, página de actualizaciones y desinstalación.
 7. Publica setup, ZIP, `SHA256SUMS.txt` y `BUILD-INFO.json` como artefacto.
-8. En tags, crea el GitHub Release y, si hay secretos SSH, copia el setup y `stable.json`/`beta.json` a `get.salonsuite.com`.
+8. En tags, crea el GitHub Release (pre-release si el tag contiene `-`) y, si hay secretos SSH, copia el setup y `stable.json`/`beta.json` a `get.salonsuite.com`.
+
+Estado verificado: el [run 39893564306](https://github.com/foxsolid23df-IA/salonbelleza/actions/runs/39893564306) sobre `484d428` completó build, pruebas, smoke y carga de artefactos. El artefacto `salonsuite-0.0.0-ci.2` se descargó y sus dos hashes coinciden con `SHA256SUMS.txt`.
 
 ### Disparar una versión
 ```
-git tag v0.2.1
-git push origin v0.2.1
+git tag v0.2.0-rc.1
+git push origin v0.2.0-rc.1
 ```
 
-También se puede lanzar manualmente con **Actions → Build & Release Salón Suite → Run workflow**, indicando versión, canal y servidor de licencias (por ejemplo, staging).
+Usa un sufijo `-rc.N` o `-beta.N` para publicar como pre-release mientras no existan certificado y despliegue. También se puede lanzar manualmente con **Actions → Build & Release Salón Suite → Run workflow**, indicando versión, canal y servidor de licencias (por ejemplo, staging).
 
 ### Configuración del repositorio
 | Nombre | Tipo | Uso |

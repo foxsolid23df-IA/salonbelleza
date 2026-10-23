@@ -9,7 +9,7 @@
 | 2. Instalador NSIS | Completada y verificada sin elevación | Probar registro/arranque del servicio con UAC real |
 | 3. Licenciamiento productivo | Completada en local y despliegue preparado | Ejecutar en VPS real (DNS/TLS), custodiar `private.pem`, compilar el instalador contra el dominio |
 | 4. Actualizaciones | Completada en local y empaquetada | Probar instalación/rollback en Windows real con servicio/UAC |
-| 5. CI/CD y firma | Completada en código | Primera ejecución en GitHub con certificado y secretos SSH reales |
+| 5. CI/CD y firma | Completada y verificada en CI (sin firma) | Certificado Authenticode real y secretos SSH para desplegar en `get.salonsuite.com` |
 | 6. QA y entrega | Pendiente | Matriz de pruebas y validación end-to-end |
 
 ## 1. Punto de partida (lo que ya existe)
@@ -22,7 +22,7 @@
 | Servidor de licencias (`tools/license-server`) | Endurecido, con admin, rate-limit, backups y Docker/Caddy listos |
 | Instalador NSIS (`build/salonsuite.nsi`) | Compilado y probado sin elevación; `dist\SalonSuite-0.2.0-setup.exe` |
 | Servicio Windows (`salonsuite-service.exe` + XML) | Implementado; falta prueba con UAC (entorno sin elevación) |
-| CI/CD GitHub Actions (`.github/workflows/build.yml`) | Implementado para Node 24/NSIS/WinSW, checksums, smoke, releases y despliegue opcional; pendiente primera ejecución |
+| CI/CD GitHub Actions (`.github/workflows/build.yml`) | Implementado y ejecutado en GitHub Actions (run `39893564306`); smoke y artefactos verificados; pendiente firma y despliegue |
 | Firma de código | Implementada con `build/sign.ps1` y signtool; pendiente certificado real |
 
 Objetivo: un `SalonSuite-X.Y.Z-setup.exe` que instale, registre el servicio, deje accesos directos, active la licencia y se actualice solo.
@@ -190,13 +190,15 @@ Pendiente:
 - Validar el helper cuando la app corre como servicio WinSW/LocalSystem y con UAC.
 - Firmar el instalador y los ejecutables: implementado en Fase 5, pendiente probar con certificado real.
 
-### Fase 5 — CI/CD y firma (completada en código)
+### Fase 5 — CI/CD y firma (completada y verificada en CI)
 Implementado:
 
 1. Workflow en `windows-latest` con Node 24, runtime embebido, NSIS, ZIP portable y `SHA256SUMS.txt`; se ejecuta en `main`/`master`, pull requests, tags y manualmente.
 2. Prueba de humo `tests/ci-smoke.ps1`: instalación silenciosa, servicio, `/health`, login, página de actualizaciones y desinstalación. Usa `SALON_DEV_SKIP_LICENSE=1` en la instalación temporal si no hay licencia de staging.
 3. Firma Authenticode con `build/sign.ps1` y `signtool`: launcher y servicio antes de NSIS, setup al final. El ZIP se recrea después de firmar.
-4. Publicación automática de artefactos y GitHub Release en tags; despliegue opcional del setup y manifiesto `stable.json`/`beta.json` a `get.salonsuite.com` por SSH.
+4. Publicación automática de artefactos y GitHub Release en tags; los tags con sufijo `-rc`/`-beta` se publican como pre-release. Despliegue opcional del setup y manifiesto `stable.json`/`beta.json` a `get.salonsuite.com` por SSH.
+
+Estado verificado: el [run 39893564306](https://github.com/foxsolid23df-IA/salonbelleza/actions/runs/39893564306) sobre `484d428` terminó en verde; instalación NSIS, servicio, `/health`, login, `/updates`, desinstalación y carga de artefactos. El artefacto `salonsuite-0.0.0-ci.2` se descargó y sus SHA-256 coinciden con `SHA256SUMS.txt`. El release de validación usa un tag `-rc` y se publica como pre-release; firma y despliegue siguen pendientes.
 
 Configuración:
 - Secretos: `WINDOWS_CERT_PFX_BASE64`, `WINDOWS_CERT_PASSWORD`, `SMOKE_LICENSE_KEY`/`SMOKE_LICENSE_EMAIL` (opcional), `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_SSH_KEY`.
