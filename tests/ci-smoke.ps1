@@ -121,9 +121,12 @@ function Restart-App {
 
 try {
   Write-Host "instalando en $InstallDir..."
-  & $installerPath /S "/D=$InstallDir"
-  if ($LASTEXITCODE -ne 0) {
-    throw "El instalador termino con codigo $LASTEXITCODE"
+  $installArguments = "/S /D=$InstallDir"
+  $installProcess = Start-Process -FilePath $installerPath -ArgumentList $installArguments -Wait -PassThru
+  $installExit = $installProcess.ExitCode
+  Write-Host "instalador exit=$installExit"
+  if ($null -ne $installExit -and $installExit -ne 0) {
+    throw "El instalador termino con codigo $installExit"
   }
   $installed = $true
 
@@ -191,9 +194,11 @@ try {
   Write-Host "login y paginas autenticadas: OK"
 
   if (Test-Path -LiteralPath $uninstaller) {
-    & $uninstaller /S
-    if ($LASTEXITCODE -ne 0) {
-      throw "El desinstalador termino con codigo $LASTEXITCODE"
+    $uninstallProcess = Start-Process -FilePath $uninstaller -ArgumentList "/S" -Wait -PassThru
+    $uninstallExit = $uninstallProcess.ExitCode
+    Write-Host "desinstalador exit=$uninstallExit"
+    if ($null -ne $uninstallExit -and $uninstallExit -ne 0) {
+      throw "El desinstalador termino con codigo $uninstallExit"
     }
   } else {
     throw "No se encontro uninstall.exe"
@@ -207,7 +212,7 @@ try {
 } finally {
   if (-not $KeepInstall) {
     if ($installed -and -not $uninstalled -and (Test-Path -LiteralPath $uninstaller)) {
-      try { & $uninstaller /S | Out-Null } catch {}
+      try { Start-Process -FilePath $uninstaller -ArgumentList "/S" -Wait -PassThru | Out-Null } catch {}
     }
     $service = Get-Service -Name $serviceName -ErrorAction SilentlyContinue
     if ($null -ne $service) {
