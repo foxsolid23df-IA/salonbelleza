@@ -198,7 +198,7 @@ Implementado:
 3. Firma Authenticode con `build/sign.ps1` y `signtool`: launcher y servicio antes de NSIS, setup al final. El ZIP se recrea después de firmar.
 4. Publicación automática de artefactos y GitHub Release en tags; los tags con sufijo `-rc`/`-beta` se publican como pre-release. Despliegue opcional del setup y manifiesto `stable.json`/`beta.json` a `get.salonsuite.com` por SSH.
 
-Estado verificado: el [run 39893564306](https://github.com/foxsolid23df-IA/salonbelleza/actions/runs/39893564306) sobre `484d428` terminó en verde; instalación NSIS, servicio, `/health`, login, `/updates`, desinstalación y carga de artefactos. El artefacto `salonsuite-0.0.0-ci.2` se descargó y sus SHA-256 coinciden con `SHA256SUMS.txt`. El release de validación usa un tag `-rc` y se publica como pre-release; firma y despliegue siguen pendientes.
+Estado verificado: el [run 39893564306](https://github.com/foxsolid23df-IA/salonbelleza/actions/runs/39893564306) sobre `484d428` terminó en verde; instalación NSIS, servicio, `/health`, login, `/updates`, desinstalación y carga de artefactos. El artefacto `salonsuite-0.0.0-ci.2` se descargó y sus SHA-256 coinciden con `SHA256SUMS.txt`. El release de validación es [v0.2.0-rc.1](https://github.com/foxsolid23df-IA/salonbelleza/releases/tag/v0.2.0-rc.1), marcado como pre-release y sin firma; el [run 39894211283](https://github.com/foxsolid23df-IA/salonbelleza/actions/runs/39894211283) verificó sus cuatro activos y omitió el despliegue por falta de secretos SSH. Firma y despliegue siguen pendientes.
 
 Configuración:
 - Secretos: `WINDOWS_CERT_PFX_BASE64`, `WINDOWS_CERT_PASSWORD`, `SMOKE_LICENSE_KEY`/`SMOKE_LICENSE_EMAIL` (opcional), `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_SSH_KEY`.

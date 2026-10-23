@@ -203,6 +203,8 @@ El workflow `.github/workflows/build.yml` se ejecuta en `windows-latest` con Nod
 
 Estado verificado: el [run 39893564306](https://github.com/foxsolid23df-IA/salonbelleza/actions/runs/39893564306) sobre `484d428` completó build, pruebas, smoke y carga de artefactos. El artefacto `salonsuite-0.0.0-ci.2` se descargó y sus dos hashes coinciden con `SHA256SUMS.txt`.
 
+Pre-release de validación: [v0.2.0-rc.1](https://github.com/foxsolid23df-IA/salonbelleza/releases/tag/v0.2.0-rc.1), publicada sin firma Authenticode y con los SHA-256 en la página del release. El [run del tag 39894211283](https://github.com/foxsolid23df-IA/salonbelleza/actions/runs/39894211283) verificó sus cuatro activos y omitió el despliegue por falta de secretos SSH.
+
 ### Disparar una versión
 ```
 git tag v0.2.0-rc.1
