@@ -10,7 +10,7 @@ App de escritorio/salón desarrollada desde cero (clean-room) para uso interno, 
 - **5: CI verificada y servidor real.** El workflow compila en `windows-latest`, genera instalador/ZIP/checksums, ejecuta el smoke con activación real contra Vercel/Turso y publica artefactos. La pre-release `v0.2.0-rc.2` está publicada sin firma Authenticode.
 - **6: pendiente.** QA final y publicación de la entrega estable firmada.
 
-Detalle y pendientes: `docs/PLAN-EMPAQUETADO.md`.
+Detalle y pendientes: `docs/PLAN-EMPAQUETADO.md`. Inventario de lo hecho, lo que falta y pasos para cerrar la entrega: `docs/ESTADO-ENTREGA.md`.
 
 ## Tecnologías (decisión del usuario)
 
