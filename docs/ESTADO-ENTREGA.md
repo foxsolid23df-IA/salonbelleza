@@ -48,7 +48,7 @@ Además, el API de GitHub no muestra esos secretos todavía: solo están visible
 |---|---|
 | Workflow `.github/workflows/build.yml` | Build en `windows-latest`, tests, NSIS, smoke, artefactos, release y despliegue opcional |
 | Smoke real | Activa la licencia de humo contra Vercel/Turso; antes revoca la activación anterior |
-| Run de `main` | `39900571808` en verde sobre `70f976c` |
+| Run de `main` | `40442697124` en verde sobre `baaf0f8` |
 | Run con smoke real | `39899601490` en verde sobre `1a9ac85`; artefacto `0.0.0-ci.8` |
 | Run de tag | `39899893300` en verde sobre `1a9ac85`; release `v0.2.0-rc.2` |
 | Pre-release | `v0.2.0-rc.2`, marcada como pre-release |
@@ -213,7 +213,7 @@ Comprobar que el manifiesto stable apunta al setup `0.2.0`, que el SHA-256 coinc
 - Producción: `https://salon-license.vercel.app`
 - Repositorio: `https://github.com/foxsolid23df-IA/salonbelleza`
 - Release rc.2: `https://github.com/foxsolid23df-IA/salonbelleza/releases/tag/v0.2.0-rc.2`
-- Run main más reciente: `https://github.com/foxsolid23df-IA/salonbelleza/actions/runs/39900571808`
+- Run main más reciente: `https://github.com/foxsolid23df-IA/salonbelleza/actions/runs/40442697124`
 - Run smoke real: `https://github.com/foxsolid23df-IA/salonbelleza/actions/runs/39899601490`
 - Run del tag rc.2: `https://github.com/foxsolid23df-IA/salonbelleza/actions/runs/39899893300`
 
